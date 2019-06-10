@@ -67,6 +67,12 @@ TEMPLATES = [
     },
 ]
 
+STATICFILES_FINDERS = (
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'compressor.finders.CompressorFinder',
+)
+
 WSGI_APPLICATION = 'demo.wsgi.application'
 
 
@@ -119,9 +125,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 MEDIA_URL='/media/'
-STATIC_ROOT = BASE_DIR + '/static/'
-MEDIA_ROOT = BASE_DIR + '/media/'
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 CORS_ORIGIN_ALLOW_ALL = True
 
@@ -134,7 +139,7 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR + '/debug.log',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
         },
     },
     'loggers': {
@@ -151,7 +156,7 @@ import spacy
 # load any spaCy models that are installed
 # this takes some time to load so doing it here and hopefully this improves performance
 
-SUPPORTED_LANGUAGES = ['de', 'es', 'pt', 'fr', 'it', 'nl']
+SUPPORTED_LANGUAGES = ['de', 'el', 'en', 'es', 'fr', 'it', 'nl', 'pt']
 
 LANGUAGE_MODELS = {}
 
@@ -161,8 +166,14 @@ for language in SUPPORTED_LANGUAGES:
     except OSError:
         print('Warning: model {} not found. Run python3 -m spacy download {} and try again.'.format(language,language))
 
-LANGUAGE_MODELS['el'] = spacy.load('el_core_web_sm')
+LANGUAGE_MODELS['de'] = spacy.load('de_core_news_sm')
+LANGUAGE_MODELS['el'] = spacy.load('el_core_news_sm')
 LANGUAGE_MODELS['en'] = spacy.load('en_core_web_sm')
+LANGUAGE_MODELS['es'] = spacy.load('es_core_news_sm')
+LANGUAGE_MODELS['fr'] = spacy.load('fr_core_news_sm')
+LANGUAGE_MODELS['it'] = spacy.load('it_core_news_sm')
+LANGUAGE_MODELS['nl'] = spacy.load('nl_core_news_sm')
+LANGUAGE_MODELS['pt'] = spacy.load('pt_core_news_sm')
 
 # this is used to display the language name
 LANGUAGE_MAPPING = {
