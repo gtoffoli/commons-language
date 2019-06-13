@@ -1,0 +1,63 @@
+{% load static %}
+
+<!DOCTYPE html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Open Source Text Analysis</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="{% static "nlp/img/favicon.png" %}" rel="icon" type="image/png" />
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,200i,300,300i,400,400i,600,600i,700,700i,900,900i&amp;subset=greek" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tachyons/4.11.1/tachyons.min.css" rel="stylesheet" />
+    <link href="{% static "nlp/css/style.css" %}" rel="stylesheet" />
+    <link href="{% static "nlp/css/animate.css" %}" rel="stylesheet" />
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="{% static "nlp/js/wow.min.js" %}"> </script>
+    <script> new WOW().init(); </script>
+    <script src="{% static "nlp/js/en.js" %}"></script>
+    <script src="{% static "nlp/js/en-static-texts.js" %}"></script>
+    <script src="{% static "nlp/js/displacy.js" %}"></script>
+    <script src="{% static "nlp/js/jquery.min.js" %}"></script>
+</head>
+
+<body>
+	{% include "analytics.html" %}
+    <header class="cf">
+        <div class="logo">
+            <h1><a href="/"> NLPBuddy - Open Source Text Analysis Tool</a></h1>
+            <img src="https://img.shields.io/badge/made%20with%20❤%20and-spaCy-09a3d5.svg">
+        </div>
+        <div class="toggle-nav">
+            <span class="toggle-nav-icon"></span>
+        </div>
+        <nav id="navBar" class="main-nav tc">
+            <ul>
+                <li><a href="/" class="active">Demo</a></li>
+                <li><a href="/gsoc">About GSOC 2018 Project</a></li>
+                <!-- <li><a target="_" href="https://github.com/eellak/gsoc2018-spacy">GSOC project Code</a></li> -->
+                <li><a href="/about">About Demo</a></li>
+								<!-- <li><a target="_" href="https://github.com/eellak/text-analysis">Demo Code</a></li> -->
+            </ul>
+        </nav>
+        <div class="lang-selection">
+            <ul>
+		    {% comment %}
+                <li><a href="/" title="Ελληνικά">ΕΛ</a></li>
+                <li class="current"><a href="/" title="English">EΝ</a></li>
+		    {% endcomment %}
+            </ul>
+        </div>
+    </header>
+
+    <!-- Return to top Arrow -->
+    <a href="javascript:" id="return-to-top"><i class="fa fa-chevron-up"></i></a>
+    
+    {% block content %}
+
+    {% endblock %}
+
+    <script src="{% static "nlp/js/scripts.js" %}"></script>
+    {% block scripts %}
+    {% endblock %}
+</body>
