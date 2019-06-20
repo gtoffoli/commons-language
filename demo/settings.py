@@ -3,11 +3,6 @@ Django settings for demo project.
 """
 
 import os
-# Note: we develop on Windows and publish on Linux
-if os.name == 'nt':
-    IS_LINUX = False
-else:
-    IS_LINUX = True
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -20,13 +15,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'zty*m5%vhs&odlx&!!_y63p^un(4!_31h5h@*tqt&4!&$rt0c#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Note: we develop on Windows and publish on Linux
-# Note: DEBUG value impacts fetching of static files!!!
-if IS_LINUX:
-    DEBUG = False
-else:
-    DEBUG = True
-    TEMPLATE_STRING_IF_INVALID = '%s'
+DEBUG = True
 
 # Application definition
 
@@ -171,10 +160,15 @@ LANGUAGE_MAPPING = {
 # this is used for language identification. Loading here to avoid importing many times
 import langid as LANG_ID
 LANG_ID.set_languages(LANGUAGE_MODELS.keys())
-# DEBUG = False
+DEBUG = False
 
 
 # whether to allow to import text from URLs
 # library python-readability fetches text from a URL 
 # and BeautifulSoup parses/removes tags
 ALLOW_URL_IMPORTS = True
+
+try:
+    from demo.private import *
+except:
+    pass

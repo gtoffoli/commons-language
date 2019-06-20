@@ -10,7 +10,6 @@ errorlog.txt
 db.sqlite3
 el_classiffier.bin
 uwsgi.ini
-demo/settings.py
-settings.py
+*private.py
 *.prefs
 .*
