@@ -13,6 +13,15 @@ if settings.ALLOW_URL_IMPORTS:
 def index(request):
     'Index view'
     context = {}
+    if request.method == 'GET':
+        context['URL'] = request.GET.get('url', '')
+        context['TEXT'] = request.GET.get('text', '')
+        noframe = request.GET.get('noframe', False)
+    elif request.method == 'POST':
+        context['URL'] = request.POST.get('url', '')
+        context['TEXT'] = request.POST.get('text', '')
+        noframe = request.POST.get('noframe', False)
+    context['FRAME'] = not noframe or noframe in ['0', 'False', 'false']
     return render(request, 'nlp/index.html', context)
 
 

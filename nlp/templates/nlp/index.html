@@ -8,7 +8,7 @@
 
           <div class="text-source-selection">
 
-            <div class="select-static-text fl current">
+            <div class="select-static-text fl current"{% if URL or TEXT %} style="display: none;"{% endif %}>
               <select>
                         <option value="false">Select text to analyze....</option>
                     </select>
@@ -16,15 +16,15 @@
             </div>
 
 
-            <div class="select-custom-text fr">
+            <div class="select-custom-text{% if not URL and not TEXT %} fr{% endif %}">
               <button>Analyze your own text</button>
             </div>
 
           </div>
-
+{% if FRAME or URL or TEXT %}
+          <textarea class="editor-source custom-text-textarea" placeholder="Enter text or URL">{{ URL }}{{ TEXT }}</textarea>
+{% endif %}
           <textarea class="editor-source static-text-textarea"></textarea>
-          <textarea class="editor-source custom-text-textarea" placeholder="Enter text or URL"></textarea>
-
           <div class="actions-row">
             <button class="analyze-it">Analyze it</button>
           </div>
@@ -232,6 +232,15 @@
   </div>
 </div>
 
+{% if URL or TEXT %}
+<script>
+$(document).ready(function() {
+  var selectCustomTextBtn = document.querySelector('.select-custom-text button');
+  selectCustomTextBtn.click();
+});
+</script>
+{% endif %}
+
 {% endblock %} {% block scripts %}
 <script>
   function trigger(elem) {
@@ -245,7 +254,6 @@
     form.removeChild(inp);
   }
 </script>
-
 
 
 {% endblock %}

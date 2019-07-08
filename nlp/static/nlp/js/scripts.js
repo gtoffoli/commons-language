@@ -427,6 +427,7 @@ function TextAnalyzerEditor() {
         cntr+=1;
     }
 
+/*
     // Analyzes one of available static texts (randomly selected).
 
     setTimeout(function(ins){
@@ -436,6 +437,7 @@ function TextAnalyzerEditor() {
             ins.elem.analyzeBtn.click();
         }, 1000);
     }, 1000, this);
+*/
 }
 
 function randomInt(min, max) {

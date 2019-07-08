@@ -23,6 +23,7 @@
 
 <body>
 	{% include "analytics.html" %}
+{% if FRAME %}
     <header class="cf">
         <div class="logo">
             <h1><a href="/"> NLPBuddy - Open Source Text Analysis Tool</a></h1>
@@ -49,6 +50,11 @@
             </ul>
         </div>
     </header>
+{% else %}
+        <div class="toggle-nav">
+            <span class="toggle-nav-icon"></span>
+        </div>
+{% endif %}
 
     <!-- Return to top Arrow -->
     <a href="javascript:" id="return-to-top"><i class="fa fa-chevron-up"></i></a>
