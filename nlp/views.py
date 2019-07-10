@@ -14,13 +14,16 @@ def index(request):
     'Index view'
     context = {}
     if request.method == 'GET':
-        context['URL'] = request.GET.get('url', '')
-        context['TEXT'] = request.GET.get('text', '')
+        context['TEXT'] = text = request.GET.get('text', '')
+        if not text:
+            context['URL'] = request.GET.get('url', '')
         noframe = request.GET.get('noframe', False)
     elif request.method == 'POST':
-        context['URL'] = request.POST.get('url', '')
-        context['TEXT'] = request.POST.get('text', '')
-        noframe = request.POST.get('noframe', False)
+        params = json.loads(request.body)
+        context['TEXT'] = text = params.get('text', '')
+        if not text:
+            context['URL'] = params.get('url', '')
+        noframe = params.get('noframe', False)
     context['FRAME'] = not noframe or noframe in ['0', 'False', 'false']
     return render(request, 'nlp/index.html', context)
 
