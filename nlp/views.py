@@ -2,6 +2,7 @@ import json
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 from .utils import analyze_text, visualize_text
 
 if settings.ALLOW_URL_IMPORTS:
@@ -12,18 +13,27 @@ if settings.ALLOW_URL_IMPORTS:
 
 def index(request):
     'Index view'
-    context = {}
+    text = url = ''
     if request.method == 'GET':
-        context['TEXT'] = text = request.GET.get('text', '')
-        if not text:
-            context['URL'] = request.GET.get('url', '')
-        noframe = request.GET.get('noframe', False)
+        text = request.GET.get('text', '')
+        url = request.GET.get('url', '')
+        noframe = request.GET.get('noframe', '')
     elif request.method == 'POST':
-        params = json.loads(request.body)
-        context['TEXT'] = text = params.get('text', '')
-        if not text:
-            context['URL'] = params.get('url', '')
-        noframe = params.get('noframe', False)
+        try:
+            params = json.loads(request.body)
+            text = params.get('text', '')
+            url = params.get('url', '')
+            noframe = params.GET.get('noframe', '')
+        except:
+            url = request.POST.get('url', '')
+            text = request.POST.get('text', '')
+            noframe = request.POST.get('noframe', '')
+    context = {}
+    if text:
+        context['TEXT'] = text
+    elif url:
+        context['URL'] = url
+    noframe = request.GET.get('noframe', False)
     context['FRAME'] = not noframe or noframe in ['0', 'False', 'false']
     return render(request, 'nlp/index.html', context)
 
@@ -50,6 +60,7 @@ def visualize_view(request):
     return render(request, 'nlp/visualize.html', ret)
 
 
+@csrf_exempt
 def analyze(request):
     'API text analyze view'
     if request.method == 'POST':
