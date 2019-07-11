@@ -11,9 +11,10 @@ if settings.ALLOW_URL_IMPORTS:
     from readability import Document
 
 
+@csrf_exempt
 def index(request):
     'Index view'
-    text = url = ''
+    text = url = noframe = ''
     if request.method == 'GET':
         text = request.GET.get('text', '')
         url = request.GET.get('url', '')
@@ -33,7 +34,6 @@ def index(request):
         context['TEXT'] = text
     elif url:
         context['URL'] = url
-    noframe = request.GET.get('noframe', False)
     context['FRAME'] = not noframe or noframe in ['0', 'False', 'false']
     return render(request, 'nlp/index.html', context)
 
