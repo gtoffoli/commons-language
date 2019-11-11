@@ -144,6 +144,7 @@ LANGUAGE_MODELS['fr'] = spacy.load('fr_core_news_sm')
 LANGUAGE_MODELS['it'] = spacy.load('it_core_news_sm')
 LANGUAGE_MODELS['nl'] = spacy.load('nl_core_news_sm')
 LANGUAGE_MODELS['pt'] = spacy.load('pt_core_news_sm')
+LANGUAGE_MODELS['lt'] = spacy.load('lt_core_news_sm')
 
 # this is used to display the language name
 LANGUAGE_MAPPING = {
@@ -155,6 +156,7 @@ LANGUAGE_MAPPING = {
         'fr': 'French',
         'it': 'Italian',
         'nl': 'Dutch',
+        'lt': 'Lithuanian',
 }
 
 # this is used for language identification. Loading here to avoid importing many times

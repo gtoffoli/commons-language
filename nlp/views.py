@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from .utils import analyze_text, visualize_text
+from .utils import text_to_list, text_to_language_doc, compare_docs
 
 if settings.ALLOW_URL_IMPORTS:
     import requests
@@ -94,3 +95,58 @@ def analyze(request):
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
+
+@csrf_exempt
+def compare(request):
+    'API compare documents view'
+    doc_dicts = []
+    if request.method == 'POST':
+        text = request.body.decode('utf-8')
+        try:
+            text = json.loads(text)['text']
+        except ValueError:
+            # catch POST form as well
+            for key in request.POST.dict().keys():
+                text = key
+
+        if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
+            lines = text_to_list(text)
+            i = 0
+            for line in lines[:2]:
+                if not line.startswith(('http://', 'https://', 'www')):
+                    response = JsonResponse({'status': 'false', 'message': 'need at least 2 urls!'})
+                    response.status_code = 400
+                    return response
+                page = requests.get(line)
+                doc = Document(page.text)
+                soup = BeautifulSoup(doc.summary())
+                text = soup.get_text()
+                title = doc.title().strip()
+                text = '{0}.\n{1}'.format(title, text)
+                if not text:
+                    response = JsonResponse({'status': 'false', 'message': 'need some text here!'})
+                    response.status_code = 400
+                    return response
+    
+                # add some limit here
+                text = text[:200000]
+                language, doc = text_to_language_doc(text)
+                if i>0 and language!=doc_dicts[0]['language']:
+                    response = JsonResponse(
+                        {'status': 'false', 'message': 'texts must be in same language!'})
+                    response.status_code = 400
+                    return response
+                    
+                doc_dicts.append({'language': language, 'doc': doc})
+                i += 1
+            ret = compare_docs(doc_dicts)
+            ret['language'] = language
+            ret['text'] = text
+            return JsonResponse(ret)
+        else:
+            response = JsonResponse({'status': 'false', 'message': 'need 2 documents!'})
+            response.status_code = 400
+            return response
+
+    else:
+        return JsonResponse({'methods_allowed': 'POST'})

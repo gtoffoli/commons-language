@@ -22,11 +22,12 @@
 
           </div>
 {% if FRAME or URL or TEXT %}
-          <textarea class="editor-source custom-text-textarea" placeholder="Enter text or URL">{{ URL }}{{ TEXT }}</textarea>
+          <textarea class="editor-source custom-text-textarea" placeholder="Enter text or URL(s)">{{ URL }}{{ TEXT }}</textarea>
 {% endif %}
           <textarea class="editor-source static-text-textarea"></textarea>
           <div class="actions-row">
-            <button class="analyze-it">Analyze it</button>
+            <button class="analyze-it">Analyze text</button>
+            <button class="compare-docs">Compare texts</button>
           </div>
         </div>
       </div>

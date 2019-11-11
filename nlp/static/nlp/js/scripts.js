@@ -104,6 +104,7 @@ function TextAnalyzerEditor() {
     this.elem = {
         body: document.querySelector('body'),
         analyzeBtn: document.querySelector('.analyze-it'),
+        compareBtn: document.querySelector('.compare-docs'),
         selectText: document.querySelector('.select-static-text select'),
         selectCustomTextBtn: document.querySelector('.select-custom-text button'),
         staticTextEditor: document.querySelector('textarea.static-text-textarea'),
@@ -111,8 +112,8 @@ function TextAnalyzerEditor() {
         lemmatizeSentencesCheck: document.querySelector('input.lemmatize-sentences')
     };
 
-    if (!this.elem.analyzeBtn || !this.elem.selectText || !this.elem.selectCustomTextBtn || !this.elem.staticTextEditor || !this.elem.customTextEditor) {
-        console.error('Missing analyzer components, ', this.elem.analyzeBtn, this.elem.selectText, this.elem.selectCustomTextBtn, this.elem.staticTextEditor, this.elem.customTextEditor);
+    if (!this.elem.analyzeBtn || !this.elem.compareBtn || !this.elem.selectText || !this.elem.selectCustomTextBtn || !this.elem.staticTextEditor || !this.elem.customTextEditor) {
+        console.error('Missing analyzer components, ', this.elem.analyzeBtn, this.elem.compareBtn, this.elem.selectText, this.elem.selectCustomTextBtn, this.elem.staticTextEditor, this.elem.customTextEditor);
         return;
     }
 
@@ -140,6 +141,22 @@ function TextAnalyzerEditor() {
         }, { text: txt } );
     }
 
+    function requestCompareDocs(txt, callback) {
+        displayLoader();
+        fnc.postJsonAjax( '/api/compare', function(result){
+            if( 200 === result.status ){
+                if( 'function' === typeof callback ){
+                    callback( 'string' === typeof result.response ? JSON.parse( result.response ) : result.response );
+                }
+            }
+            else{
+                console.warn('Invalid response status', result.status);
+                hideLoader();
+            }
+
+        }, { text: txt } );
+    }
+
     function load_results(type, val) {
 
         var i, w, d;
@@ -153,10 +170,11 @@ function TextAnalyzerEditor() {
                 ins.elem.boxes.summaryContent.innerHTML = val;
                 break;
             case 'various':
-                w = 'undefined' !== typeof val.language ? '<li><label>' + i18n.Languague + ':</label>' + val.language + '</li>' : '';
+                w = 'undefined' !== typeof val.language ? '<li><label>' + i18n.Language + ':</label>' + val.language + '</li>' : '';
                 w += 'undefined' !== typeof val.category ? '<li><label>' + i18n.Category + ':</label>' + val.category + '</li>' : '';
                 w += 'undefined' !== typeof val.emotion_name ? '<li><label>' + 'Emotion' + ':</label>' + val.emotion_name + '</li>' : '';
                 w += 'undefined' !== typeof val.subjectivity ? '<li><label>' + 'Subjectivity' + ':</label>' + val.subjectivity + '% </li>' : '';
+                w += 'undefined' !== typeof val.similarity ? '<li><label>' + 'Similarity' + ':</label>' + val.similarity + '% </li>' : '';
                 w = '' === w ? w : '<ul>' + w + '</ul>';
                 ins.elem.boxes.variousContent.innerHTML = w;
                 break;
@@ -335,6 +353,21 @@ function TextAnalyzerEditor() {
         lastResult = result;
     }
 
+    function responseCompareDocs(result) {
+        load_results('text', result.text || '');
+        load_results('various', { language: result.language, similarity: result.similarity});
+
+        fnc.dom.addClass(ins.elem.body, 'has-results');
+
+        if( result.text && '' !== result.text ){
+            initTooltips( document.querySelector('.results-box.text-results').querySelectorAll('.tooltip') );
+        }
+
+        hideLoader();
+
+        lastResult = result;
+    }
+
     function on_textSelect() {
         fnc.dom[ins.states.customText ? 'addClass' : 'removeClass'](ins.elem.body, 'with-custom-text-editor');
     }
@@ -343,6 +376,13 @@ function TextAnalyzerEditor() {
         var analyzeTxt = ins.elem[ins.states.customText ? 'customTextEditor' : 'staticTextEditor'].value.trim();
         if (2 < analyzeTxt.length) {
             requestTextAnalysis(analyzeTxt, responseTextAnalysis);
+        }
+    }
+
+    function onclick_compareDocs() {
+        var compareDocs = ins.elem['customTextEditor'].value.trim();
+        if (2 < compareDocs.length) {
+            requestCompareDocs(compareDocs, responseCompareDocs);
         }
     }
 
@@ -406,6 +446,7 @@ function TextAnalyzerEditor() {
     };
 
     this.elem.analyzeBtn.addEventListener('click', onclick_analyzeIt);
+    this.elem.compareBtn.addEventListener('click', onclick_compareDocs);
     this.elem.selectText.addEventListener('change', onselect_staticText);
     this.elem.selectCustomTextBtn.addEventListener('click', onselect_customText);
     this.elem.toggleNav.addEventListener('click', onclick_toggleNav);

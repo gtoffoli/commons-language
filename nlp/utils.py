@@ -4,13 +4,19 @@ from subprocess import check_output
 from collections import defaultdict
 
 from django.conf import settings
+import spacy 
 from spacy import displacy
 from gensim.summarization import summarize
 import pandas as pd
 import operator
 import re
 
-
+def text_to_list(text):
+    if not text:
+        return []
+    list = text.splitlines()
+    list = [item.strip() for item in list]
+    return [item for item in list if len(item)]
 
 fasttext_path = '/opt/demo-app/fastText/fasttext'
 
@@ -73,14 +79,38 @@ def load_greek_lexicon():
 
 df, subj_scores, emotion_scores, polarity_scores, indexes = load_greek_lexicon()
 
+def customize_model(model):
+    def set_custom_boundaries(doc):
+        """ end sentence at colon and semicolon """
+        for token in doc[:-2]:
+            if token.text in [':', ';',]:
+                doc[token.i+1].is_sent_start = True
+        return doc
+    try:
+        model.add_pipe(set_custom_boundaries, before="parser")
+    except:
+        pass
 
-def analyze_text(text):
+# as a side-effect, extends the language model
+def text_to_language_doc(text):
+    language = settings.LANG_ID.classify(text)[0]
+    model = settings.LANGUAGE_MODELS[language]
+    customize_model(model) # 191111 GT
+    doc = model(text)
+    return language, doc
+
+# def analyze_text(text):
+def analyze_text(text, language=None, doc=None):
     ret = {}
     # language identification
+    """
     language = settings.LANG_ID.classify(text)[0]
     lang = settings.LANGUAGE_MODELS[language]
-    ret = {}
+    customize_model(lang) # 191111 GT
     doc = lang(text)
+    """
+    if not (language and doc):
+        language, doc = text_to_language_doc(text)
     ret['language'] = settings.LANGUAGE_MAPPING[language]
     # analyzed text containing lemmas, pos and dep. Entities are coloured
     analyzed_text = ''
@@ -238,3 +268,13 @@ def sentiment_analysis(doc):
         return {}
     except Exception:
         return {}
+
+def compare_docs(doc_dicts):
+    doc_dict_0 = doc_dicts[0]
+    doc_0 = doc_dict_0['doc']
+    similarities = []
+    for doc_dict in doc_dicts[1:]:
+        doc = doc_dict['doc']
+        similarities.append(doc.similarity(doc_0))
+    ret = {'n_docs': len(doc_dicts), 'similarity': similarities[0]}
+    return ret

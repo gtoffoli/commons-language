@@ -6,5 +6,5 @@ var i18n = {
 	Location: "Location",
 	Person: "Person",
 	Category: "Category",
-	Languague: "Languague"
+	Language: "Language"
 };
