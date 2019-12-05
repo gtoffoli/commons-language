@@ -62,7 +62,7 @@ def visualize_view(request):
 
 
 @csrf_exempt
-def analyze(request):
+def analyze(request, return_doc=False):
     'API text analyze view'
     if request.method == 'POST':
         text = request.body.decode('utf-8')
@@ -89,12 +89,25 @@ def analyze(request):
 
         # add some limit here
         text = text[:200000]
-        ret = {}
-        ret = analyze_text(text)
+        if return_doc:
+            language, doc = text_to_language_doc(text)
+            if not language:
+                response = JsonResponse(
+                    {'status': 'false', 'message': 'unrecognized language'})
+                response.status_code = 400
+                return response
+            ret = doc.to_json()
+            ret['language'] = language
+        else:
+            ret = analyze_text(text)
         return JsonResponse(ret)
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
+
+@csrf_exempt
+def doc(request):
+    return analyze(request, return_doc=True)
 
 @csrf_exempt
 def compare(request):
