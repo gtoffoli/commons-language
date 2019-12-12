@@ -90,14 +90,17 @@ def analyze(request, return_doc=False):
         # add some limit here
         text = text[:200000]
         if return_doc:
-            language, doc = text_to_language_doc(text)
+            # language, doc = text_to_language_doc(text)
+            language, doc_json = text_to_language_doc(text, return_json=True)
             if not language:
                 response = JsonResponse(
                     {'status': 'false', 'message': 'unrecognized language'})
                 response.status_code = 400
                 return response
-            ret = doc.to_json()
+            # ret = doc.to_json()
+            ret = doc_json
             ret['language'] = language
+            print(ret)
         else:
             ret = analyze_text(text)
         return JsonResponse(ret)

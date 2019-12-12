@@ -92,12 +92,25 @@ def customize_model(model):
         pass
 
 # as a side-effect, extends the language model
-def text_to_language_doc(text):
+def text_to_language_doc(text, return_json=False):
     language = settings.LANG_ID.classify(text)[0]
     model = settings.LANGUAGE_MODELS[language]
     customize_model(model) # 191111 GT
     doc = model(text)
-    return language, doc
+    if return_json:
+        json = doc.to_json()
+        start_dict = {}
+        for token_data in json['tokens']:
+            start_dict[token_data['start']] = token_data
+        for token in doc:
+            token_data = start_dict[token.idx]
+            token_data['stop'] = token.is_stop
+            token_data['num'] = token.like_num
+            token_data['email'] = token.like_email
+            token_data['url'] = token.like_url
+        return language, json
+    else:
+        return language, doc
 
 # def analyze_text(text):
 def analyze_text(text, language=None, doc=None):
