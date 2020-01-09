@@ -105,6 +105,8 @@ def text_to_language_doc(text, return_json=False):
         for token in doc:
             token_data = start_dict[token.idx]
             token_data['stop'] = token.is_stop
+            token_data['lemma'] = token.lemma_
+            token_data['oov'] = token.is_oov
             token_data['num'] = token.like_num
             token_data['email'] = token.like_email
             token_data['url'] = token.like_url
