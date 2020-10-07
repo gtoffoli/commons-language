@@ -128,23 +128,23 @@ import spacy
 
 SUPPORTED_LANGUAGES = ['de', 'el', 'en', 'es', 'fr', 'it', 'nl', 'pt']
 
-LANGUAGE_MODELS = {}
+AVAILABLE_LANGUAGE_MODELS = {}
+AVAILABLE_LANGUAGE_MODELS['de'] = 'de_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['el'] = 'el_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['en'] = 'en_core_web_sm'
+AVAILABLE_LANGUAGE_MODELS['es'] = 'es_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['fr'] = 'fr_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['it'] = 'it_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['nl'] = 'nl_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['pt'] = 'pt_core_news_sm'
+AVAILABLE_LANGUAGE_MODELS['lt'] = 'lt_core_news_sm'
 
+LANGUAGE_MODELS = {}
 for language in SUPPORTED_LANGUAGES:
     try:
-        LANGUAGE_MODELS[language] = spacy.load(language)
+        LANGUAGE_MODELS[language] = spacy.load(AVAILABLE_LANGUAGE_MODELS[language]) # (language)
     except OSError:
         print('Warning: model {} not found. Run python3 -m spacy download {} and try again.'.format(language,language))
-
-LANGUAGE_MODELS['de'] = spacy.load('de_core_news_sm')
-LANGUAGE_MODELS['el'] = spacy.load('el_core_news_sm')
-LANGUAGE_MODELS['en'] = spacy.load('en_core_web_sm')
-LANGUAGE_MODELS['es'] = spacy.load('es_core_news_sm')
-LANGUAGE_MODELS['fr'] = spacy.load('fr_core_news_sm')
-LANGUAGE_MODELS['it'] = spacy.load('it_core_news_sm')
-LANGUAGE_MODELS['nl'] = spacy.load('nl_core_news_sm')
-LANGUAGE_MODELS['pt'] = spacy.load('pt_core_news_sm')
-LANGUAGE_MODELS['lt'] = spacy.load('lt_core_news_sm')
 
 # this is used to display the language name
 LANGUAGE_MAPPING = {
@@ -163,7 +163,6 @@ LANGUAGE_MAPPING = {
 import langid as LANG_ID
 LANG_ID.set_languages(LANGUAGE_MODELS.keys())
 DEBUG = False
-
 
 # whether to allow to import text from URLs
 # library python-readability fetches text from a URL 
