@@ -1,4 +1,5 @@
 import os
+import glob
 import tempfile
 from subprocess import check_output
 from collections import defaultdict
@@ -6,6 +7,7 @@ from collections import defaultdict
 from django.conf import settings
 import spacy 
 from spacy import displacy
+from spacy.tokens import DocBin
 from gensim.summarization import summarize
 import pandas as pd
 import operator
@@ -92,13 +94,15 @@ def customize_model(model):
         pass
 
 # as a side-effect, extends the language model
-def text_to_language_doc(text, return_json=False):
+def text_to_doc(text, return_json=False, doc_key=None):
     language = settings.LANG_ID.classify(text)[0]
     model = settings.LANGUAGE_MODELS[language]
     customize_model(model) # 191111 GT
     doc = model(text)
+    doc.user_data = {'language': language, 'doc_key': doc_key}
     if return_json:
         json = doc.to_json()
+        json['language'] = language
         start_dict = {}
         for token_data in json['tokens']:
             start_dict[token_data['start']] = token_data
@@ -110,22 +114,20 @@ def text_to_language_doc(text, return_json=False):
             token_data['num'] = token.like_num
             token_data['email'] = token.like_email
             token_data['url'] = token.like_url
-        return language, json
+        # return language, json
+        return json
     else:
-        return language, doc
+        # return language, doc
+        return doc
 
 # def analyze_text(text):
 def analyze_text(text, language=None, doc=None):
     ret = {}
     # language identification
-    """
-    language = settings.LANG_ID.classify(text)[0]
-    lang = settings.LANGUAGE_MODELS[language]
-    customize_model(lang) # 191111 GT
-    doc = lang(text)
-    """
     if not (language and doc):
-        language, doc = text_to_language_doc(text)
+        # language, doc = text_to_doc(text)
+        doc = text_to_doc(text)
+        language = doc.user_data['language']
     ret['language'] = settings.LANGUAGE_MAPPING[language]
     # analyzed text containing lemmas, pos and dep. Entities are coloured
     analyzed_text = ''
@@ -200,7 +202,11 @@ def analyze_text(text, language=None, doc=None):
             part_of_speech[mapped_token].append(token.text)
     ret['part_of_speech'] = part_of_speech
     ret['lexical_attrs'] = lexical_attrs
-    ret['noun_chunks'] = [re.sub(r'[^\w\s]', '', x.text) for x in doc.noun_chunks]
+    # ret['noun_chunks'] = [re.sub(r'[^\w\s]', '', x.text) for x in doc.noun_chunks]
+    try:
+        ret['noun_chunks'] = [re.sub(r'[^\w\s]', '', x.text) for x in doc.noun_chunks]
+    except:
+        ret['noun_chunks'] = []
     return ret
 
 
@@ -293,3 +299,37 @@ def compare_docs(doc_dicts):
         similarities.append(doc.similarity(doc_0))
     ret = {'n_docs': len(doc_dicts), 'similarity': similarities[0]}
     return ret
+
+def addto_docbin(docbin, doc, user_key):
+    docbin.add(doc)
+    path = os.path.join(settings.TEMP_ROOT, user_key)
+    docbin.to_disk(path)
+
+def get_docbin(user_key):
+    path = os.path.join(settings.TEMP_ROOT, user_key)
+    docbin = DocBin(store_user_data=True)
+    if os.path.exists(path):
+        docbin.from_disk(path)
+    else:
+        docbin.to_disk(path)
+    return docbin
+    
+def delete_docbin(user_key):
+    path = os.path.join(settings.TEMP_ROOT, user_key)
+    if os.path.exists(path):
+        os.remove(path)
+
+def compare_docbin(docbin, language='en'):
+    model = settings.LANGUAGE_MODELS[language]
+    docs = list(docbin.get_docs(model.vocab))
+    i = 0
+    results_1 = []
+    for doc_1 in docs:
+        i += 1
+        results_2 = []
+        for doc_2 in docs[i:]:
+            similarity = doc_1.similarity(doc_2)
+            results_2.append(similarity)
+        results_1.append(results_2)
+    return results_1
+    

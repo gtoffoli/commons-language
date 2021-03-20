@@ -112,6 +112,8 @@ MEDIA_URL='/media/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+TEMP_ROOT = os.path.join(BASE_DIR, 'temp')
+
 CORS_ORIGIN_ALLOW_ALL = True
 
 ALLOWED_HOSTS = ['nlp.wordgames.gr', 'localhost', 'nlpbuddy.io', 'www.nlpbuddy.io']
@@ -122,29 +124,6 @@ LOGGING = {
 }
 
 import spacy
-
-# load any spaCy models that are installed
-# this takes some time to load so doing it here and hopefully this improves performance
-
-SUPPORTED_LANGUAGES = ['de', 'el', 'en', 'es', 'fr', 'it', 'nl', 'pt']
-
-AVAILABLE_LANGUAGE_MODELS = {}
-AVAILABLE_LANGUAGE_MODELS['de'] = 'de_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['el'] = 'el_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['en'] = 'en_core_web_sm'
-AVAILABLE_LANGUAGE_MODELS['es'] = 'es_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['fr'] = 'fr_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['it'] = 'it_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['nl'] = 'nl_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['pt'] = 'pt_core_news_sm'
-AVAILABLE_LANGUAGE_MODELS['lt'] = 'lt_core_news_sm'
-
-LANGUAGE_MODELS = {}
-for language in SUPPORTED_LANGUAGES:
-    try:
-        LANGUAGE_MODELS[language] = spacy.load(AVAILABLE_LANGUAGE_MODELS[language]) # (language)
-    except OSError:
-        print('Warning: model {} not found. Run python3 -m spacy download {} and try again.'.format(language,language))
 
 # this is used to display the language name
 LANGUAGE_MAPPING = {
@@ -158,6 +137,32 @@ LANGUAGE_MAPPING = {
         'nl': 'Dutch',
         'lt': 'Lithuanian',
 }
+
+# load any spaCy models that are installed
+# this takes some time to load so doing it here and hopefully this improves performance
+
+SUPPORTED_LANGUAGES = ['de', 'el', 'en', 'es', 'fr', 'it', 'nl', 'pt']
+
+AVAILABLE_LANGUAGE_MODELS = {}
+AVAILABLE_LANGUAGE_MODELS['de'] = ('de_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['el'] = ('el_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['en'] = ('en_core_web_md', 'en_core_web_sm',)
+AVAILABLE_LANGUAGE_MODELS['es'] = ('es_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['fr'] = ('fr_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['it'] = ('it_core_news_md', 'it_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['nl'] = ('nl_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['pt'] = ('pt_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['lt'] = ('lt_core_news_sm',)
+
+LANGUAGE_MODELS = {}
+for language in SUPPORTED_LANGUAGES:
+    for model in AVAILABLE_LANGUAGE_MODELS[language]:
+        try:
+            LANGUAGE_MODELS[language] = spacy.load(model) # (language)
+            break
+        except OSError:
+            print('Warning: model {} not found.'.format(model))
+            continue
 
 # this is used for language identification. Loading here to avoid importing many times
 import langid as LANG_ID

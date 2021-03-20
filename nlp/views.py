@@ -4,7 +4,8 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from .utils import analyze_text, visualize_text
-from .utils import text_to_list, text_to_language_doc, compare_docs
+from .utils import text_to_list, text_to_doc, compare_docs
+from .utils import get_docbin, addto_docbin, delete_docbin, compare_docbin
 
 if settings.ALLOW_URL_IMPORTS:
     import requests
@@ -90,16 +91,16 @@ def analyze(request, return_doc=False):
         # add some limit here
         text = text[:200000]
         if return_doc:
-            # language, doc = text_to_language_doc(text)
-            language, doc_json = text_to_language_doc(text, return_json=True)
+            # language, doc_json = text_to_doc(text, return_json=True)
+            doc_json = text_to_doc(text, return_json=True)
+            language = doc_json['language']
             if not language:
                 response = JsonResponse(
                     {'status': 'false', 'message': 'unrecognized language'})
                 response.status_code = 400
                 return response
-            # ret = doc.to_json()
             ret = doc_json
-            ret['language'] = language
+            # ret['language'] = language
             print(ret)
         else:
             ret = analyze_text(text)
@@ -146,7 +147,9 @@ def compare(request):
     
                 # add some limit here
                 text = text[:200000]
-                language, doc = text_to_language_doc(text)
+                # language, doc = text_to_doc(text)
+                doc = text_to_doc(text)
+                language = doc.user_data['language']
                 if i>0 and language!=doc_dicts[0]['language']:
                     response = JsonResponse(
                         {'status': 'false', 'message': 'texts must be in same language!'})
@@ -166,3 +169,45 @@ def compare(request):
 
     else:
         return JsonResponse({'methods_allowed': 'POST'})
+
+texts_list = []
+
+@csrf_exempt
+def add_doc(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    body = request.body.decode('utf-8')
+    body = json.loads(body)
+    user_key = body['user_key']
+    doc_key = body['doc_key']
+    text = body['text']
+    doc = text_to_doc(text, doc_key=doc_key)
+    docbin = get_docbin(user_key)
+    addto_docbin(docbin, doc, user_key)
+    return JsonResponse({'status': 'true', 'language': doc.user_data['language']})
+
+@csrf_exempt
+def delete_docs(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    body = request.body.decode('utf-8')
+    body = json.loads(body)
+    user_key = body['user_key']
+    delete_docbin(user_key)
+    return JsonResponse({'status': 'true'})
+
+@csrf_exempt
+def compare_docs(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    body = request.body.decode('utf-8')
+    body = json.loads(body)
+    user_key = body['user_key']
+    language = body['language']
+    docbin = get_docbin(user_key)
+    n = len(docbin)
+    if n < 2:
+        return JsonResponse({'status': 'false', 'message': 'need 2 documents at least!'})
+    result = compare_docbin(docbin, language=language)
+    return JsonResponse({'status': 'true', 'result': result})
+    
