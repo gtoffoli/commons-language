@@ -100,8 +100,7 @@ def analyze(request, return_doc=False):
                 response.status_code = 400
                 return response
             ret = doc_json
-            # ret['language'] = language
-            print(ret)
+            # print(ret)
         else:
             ret = analyze_text(text)
         return JsonResponse(ret)

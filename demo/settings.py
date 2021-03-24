@@ -118,9 +118,45 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 ALLOWED_HOSTS = ['nlp.wordgames.gr', 'localhost', 'nlpbuddy.io', 'www.nlpbuddy.io']
 
+# from commons
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse'
+        }
+    },
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'mail_admins': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'stream': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose'
+        },
+        'errorlog': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['mail_admins', 'errorlog',],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    }
 }
 
 import spacy
