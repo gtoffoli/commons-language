@@ -1,17 +1,29 @@
 import json
+from spacy.tokens import Doc
+from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from .utils import analyze_text, visualize_text
-from .utils import text_to_list, text_to_doc, compare_docs
-from .utils import get_docbin, addto_docbin, delete_docbin, compare_docbin
+from .utils import text_to_list, text_to_doc, get_doc_attributes, compare_docs
+from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
+from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
+from .utils import language_from_file_key, get_sorted_keywords, compare_docbin
 
 if settings.ALLOW_URL_IMPORTS:
     import requests
     from bs4 import BeautifulSoup
     from readability import Document
 
+if not Doc.has_extension("obj_type"):
+    Doc.set_extension("obj_type", default='')
+if not Doc.has_extension("obj_id"):
+    Doc.set_extension("obj_id", default=0)
+if not Doc.has_extension("label"):
+    Doc.set_extension("label", default='')
+if not Doc.has_extension("url"):
+    Doc.set_extension("url", default='/')
 
 @csrf_exempt
 def index(request):
@@ -100,7 +112,6 @@ def analyze(request, return_doc=False):
                 response.status_code = 400
                 return response
             ret = doc_json
-            # print(ret)
         else:
             ret = analyze_text(text)
         return JsonResponse(ret)
@@ -146,9 +157,8 @@ def compare(request):
     
                 # add some limit here
                 text = text[:200000]
-                # language, doc = text_to_doc(text)
                 doc = text_to_doc(text)
-                language = doc.user_data['language']
+                language = doc.lang_
                 if i>0 and language!=doc_dicts[0]['language']:
                     response = JsonResponse(
                         {'status': 'false', 'message': 'texts must be in same language!'})
@@ -169,44 +179,117 @@ def compare(request):
     else:
         return JsonResponse({'methods_allowed': 'POST'})
 
-texts_list = []
+
+@csrf_exempt
+def new_corpus(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    data = json.loads(request.body.decode('utf-8'))
+    user_key = data['user_key']
+    file_key, docbin = make_docbin(user_key)
+    result = {'file_key': file_key}
+    return JsonResponse(result)
 
 @csrf_exempt
 def add_doc(request):
     if not request.method == 'POST':
         return JsonResponse({'status': 'false', 'message': 'invalid method!'})
-    body = request.body.decode('utf-8')
-    body = json.loads(body)
-    user_key = body['user_key']
-    doc_key = body['doc_key']
-    text = body['text']
-    doc = text_to_doc(text, doc_key=doc_key)
-    docbin = get_docbin(user_key)
-    addto_docbin(docbin, doc, user_key)
-    return JsonResponse({'status': 'true', 'language': doc.user_data['language']})
+    data = json.loads(request.body.decode('utf-8'))
+    file_key = data['file_key'] or None
+    text = data['text']
+    doc = text_to_doc(text)
+    doc._.label = data['label']
+    doc._.obj_type = data['obj_type']
+    doc._.obj_id = data['obj_id']
+    doc._.url = data['url']
+    result = get_doc_attributes(doc)
+    file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
+    file_key, docbin = addto_docbin(docbin, doc, file_key)
+    if docbin:
+        result.update({'file_key': file_key})
+    else:
+        result = {'file_key': ''}
+    return JsonResponse(result)
 
 @csrf_exempt
-def delete_docs(request):
+def remove_doc(request):
     if not request.method == 'POST':
         return JsonResponse({'status': 'false', 'message': 'invalid method!'})
-    body = request.body.decode('utf-8')
-    body = json.loads(body)
-    user_key = body['user_key']
-    delete_docbin(user_key)
-    return JsonResponse({'status': 'true'})
+    data = json.loads(request.body.decode('utf-8'))
+    file_key = data['file_key']
+    obj_type = data['obj_type']
+    obj_id = data['obj_id']
+    index = removefrom_docbin(file_key, obj_type, obj_id)
+    result = {'index': index}
+    return JsonResponse(result)
+
+@csrf_exempt
+def get_corpora(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    data = json.loads(request.body.decode('utf-8'))
+    user_key = data['user_key']
+    project_key = data.get('project_key', None)
+    corpora = []
+    if user_key:
+        for file_key, docbin, time_stamp in get_principal_docbins(user_key=user_key, project_key=project_key):
+            language = language_from_file_key(file_key)
+            corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': get_docbin_summary(docbin, language)})
+    return JsonResponse({'corpora': corpora})
+
+@csrf_exempt
+def delete_corpus(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    data = json.loads(request.body.decode('utf-8'))
+    file_key = data['file_key']
+    delete_docbin(file_key)
+    return JsonResponse(data)
 
 @csrf_exempt
 def compare_docs(request):
     if not request.method == 'POST':
         return JsonResponse({'status': 'false', 'message': 'invalid method!'})
-    body = request.body.decode('utf-8')
-    body = json.loads(body)
-    user_key = body['user_key']
-    language = body['language']
-    docbin = get_docbin(user_key)
+    data = json.loads(request.body.decode('utf-8'))
+    file_key = data['file_key']
+    file_key, docbin = get_docbin(file_key=file_key)
+    language = language_from_file_key(file_key)
     n = len(docbin)
     if n < 2:
         return JsonResponse({'status': 'false', 'message': 'need 2 documents at least!'})
     result = compare_docbin(docbin, language=language)
     return JsonResponse({'status': 'true', 'result': result})
-    
+ 
+@csrf_exempt
+def word_contexts(request):
+    data = json.loads(request.body.decode('utf-8'))
+    MAX_KWS = 10
+    CONTEXT_SIZE = 2
+    file_key = data['file_key']
+    file_key, docbin = get_docbin(file_key=file_key)
+    language = language_from_file_key(file_key)
+    model = settings.LANGUAGE_MODELS[language]
+    docs = list(docbin.get_docs(model.vocab))
+    i = 0
+    for doc in docs:
+        _init_doc(doc)
+        i += 1
+        doc._.label = 'doc_{}'.format(i)
+    keywords = get_sorted_keywords(language=language, docs=docs)
+    keywords = [kw for kw in keywords if len(kw[0])>1]
+    keywords_in_context = []
+    for word, frequency in keywords[:MAX_KWS]:
+        contexts_dict = \
+            kwic(docs, word, context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+            glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
+            glue=None, highlight_keyword=None)
+        contexts = []
+        for context_item in contexts_dict.items():
+            for window in context_item[1]:
+                left = ' '.join(window[:CONTEXT_SIZE])
+                middle = ' '.join(window[CONTEXT_SIZE])
+                right = ' '.join(window[-CONTEXT_SIZE:])
+                contexts.append([left, middle, right])
+        keyword_in_context = {'kw': word, 'frequency': frequency, 'contexts': contexts}
+        keywords_in_context.append(keyword_in_context)
+    return JsonResponse({'keywords': keywords, 'kwics': keywords_in_context})

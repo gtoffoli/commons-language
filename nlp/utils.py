@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+import time
 import glob
 import tempfile
 from subprocess import check_output
@@ -7,11 +9,13 @@ from collections import defaultdict
 from django.conf import settings
 import spacy 
 from spacy import displacy
-from spacy.tokens import DocBin
+from spacy.tokens import Doc, DocBin
+from spacy.attrs import ORTH
 from gensim.summarization import summarize
 import pandas as pd
 import operator
 import re
+from tmtoolkit.preprocess._docfuncs import _init_doc
 
 def text_to_list(text):
     if not text:
@@ -99,7 +103,8 @@ def text_to_doc(text, return_json=False, doc_key=None):
     model = settings.LANGUAGE_MODELS[language]
     customize_model(model) # 191111 GT
     doc = model(text)
-    doc.user_data = {'language': language, 'doc_key': doc_key}
+    _init_doc(doc)
+    doc.user_data.update({'doc_key': doc_key})
     if return_json:
         json = doc.to_json()
         json['language'] = language
@@ -114,20 +119,20 @@ def text_to_doc(text, return_json=False, doc_key=None):
             token_data['num'] = token.like_num
             token_data['email'] = token.like_email
             token_data['url'] = token.like_url
-        # return language, json
         return json
     else:
-        # return language, doc
         return doc
+
+def get_doc_attributes(doc):
+    return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH))}
 
 # def analyze_text(text):
 def analyze_text(text, language=None, doc=None):
     ret = {}
     # language identification
     if not (language and doc):
-        # language, doc = text_to_doc(text)
         doc = text_to_doc(text)
-        language = doc.user_data['language']
+        language = doc.lang_
     ret['language'] = settings.LANGUAGE_MAPPING[language]
     # analyzed text containing lemmas, pos and dep. Entities are coloured
     analyzed_text = ''
@@ -209,7 +214,6 @@ def analyze_text(text, language=None, doc=None):
         ret['noun_chunks'] = []
     return ret
 
-
 def predict_category(text, language):
     "Loads FastText models and predicts category"
     text = text.lower().replace('\n', ' ')
@@ -231,6 +235,158 @@ def predict_category(text, language):
 
     return category
 
+def merge_docs(language=None, docs=[], docbin=None, text=None):
+    if docbin:
+        assert language is not None
+        model = settings.LANGUAGE_MODELS[language]
+        # docs.extend(list(docbin.get_docs(model.vocab)))
+        docs = docs + list(docbin.get_docs(model.vocab))
+    if text:
+        docs.append(text_to_doc(text))
+    if not docs:
+        return -1, None
+    if not all(doc[0].lang_ == doc.lang_ for doc in docs):
+        return -2, None
+    if len(docs) == 1:
+        doc = docs[0]
+    else:
+        doc = Doc.from_docs(docs)
+        _init_doc(doc)
+    return 0, doc
+
+def analyze_doc(doc, keys=[], return_text=True):
+
+    language = doc.lang_
+    ret = {'language': language}
+
+    text = doc.text
+    if 'text' in keys:
+        ret['text'] = text
+
+    if 'analyzed_text' in keys:
+        analyzed_text = ''
+        for token in doc:
+            if token.ent_type_:
+                analyzed_text += '<span class="tooltip" data-content="POS: {0}<br> LEMMA: {1}<br> DEP: {2}" style="color: red;" >{3} </span>'.format(
+                    token.pos_, token.lemma_, token.dep_, token.text)
+            else:
+                analyzed_text += '<span class="tooltip" data-content="POS: {0}<br> LEMMA: {1}<br> DEP: {2}" >{3} </span>'.format(
+                    token.pos_, token.lemma_, token.dep_, token.text)
+    
+        ret['analyzed_text'] = analyzed_text
+
+    # Text category. Only valid for Greek text for now
+    if 'sentiment' in keys and language == 'el':
+        ret.update(sentiment_analysis(doc))
+        try:
+            ret['category'] = predict_category(text, language)
+        except Exception:
+            pass
+
+    if 'summary' in keys:
+        try:
+            ret['summary'] = summarize(text)
+        except ValueError:  # why does it break in short sentences?
+            ret['summary'] = ''
+
+    if 'keywords' in keys:
+        # top 10 most frequent keywords, based on tokens lemmatization
+        frequency = defaultdict(int)
+        lexical_attrs = {
+            'urls': [],
+            'emails': [],
+            'nums': [],
+        }
+        for token in doc:
+            if (token.like_url):
+                lexical_attrs['urls'].append(token.text)
+            if (token.like_email):
+                lexical_attrs['emails'].append(token.text)
+            if (token.like_num or token.is_digit):
+                lexical_attrs['nums'].append(token.text)
+            if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
+                frequency[token.lemma_] += 1
+        """
+        keywords = [keyword for keyword, frequency in sorted(
+            frequency.items(), key=lambda k_v: k_v[1], reverse=True)][:10]
+        if return_text:
+            ret['keywords'] = ', '.join(keywords)
+        else:
+            ret['keywords'] = keywords
+        """
+        frequency_items = sorted(frequency.items(), key=lambda k_v: k_v[1], reverse=True)
+        if return_text:
+            keywords = [item[0] for item in frequency_items[:10]]
+            ret['keywords'] = ', '.join(keywords)
+        else:
+            ret['keywords'] = frequency_items
+
+    if 'entities' in keys:
+        # Named Entities
+        entities = {label: [] for key, label in ENTITIES_MAPPING.items()}
+        for ent in doc.ents:
+            # noticed that these are found some times
+            if ent.text.strip() not in ['\n', '', ' ', '.', ',', '-', '–', '_']:
+                mapped_entity = ENTITIES_MAPPING.get(ent.label_)
+                if mapped_entity and ent.text not in entities[mapped_entity]:
+                    entities[mapped_entity].append(ent.text)
+        ret['named_entities'] = entities
+
+    if 'sentences' in keys:
+        # Sentences splitting
+        ret['sentences'] = [sentence.text for sentence in doc.sents]
+
+    if 'entities' in keys:
+        # Lemmatized sentences splitting
+        ret['lemmatized_sentences'] = [sentence.lemma_ for sentence in doc.sents]
+
+    if 'tokenized' in keys:
+        # Text tokenization
+        ret['text_tokenized'] = [token.text for token in doc]
+
+    if 'pos' in keys:
+        # Parts of Speech
+        part_of_speech = {label: [] for key, label in POS_MAPPING.items()}
+    
+        for token in doc:
+            mapped_token = POS_MAPPING.get(token.pos_)
+            if mapped_token and token.text not in part_of_speech[mapped_token]:
+                part_of_speech[mapped_token].append(token.text)
+        ret['part_of_speech'] = part_of_speech
+
+    if 'lexical_attrs' in keys:
+        ret['lexical_attrs'] = lexical_attrs
+
+    if 'noun_chunks' in keys:
+        try:
+            ret['noun_chunks'] = [re.sub(r'[^\w\s]', '', x.text) for x in doc.noun_chunks]
+        except:
+            ret['noun_chunks'] = []
+
+    return ret
+
+# def get_sorted_keywords(language=None, doc=None, docs=[], docbin=None, text=None):
+def get_sorted_keywords(language=None, doc=None, docs=[], text=None):
+    """
+    if not doc:
+        status, doc = merge_docs(language=language, docs=docs, docbin=docbin, text=text)
+    results = analyze_doc(doc, keys=['keywords'], return_text=False)
+    """
+    assert doc or docs or text
+    if text:
+        pass
+    if docs:
+        doc = docs[0]
+    results = analyze_doc(doc, keys=['keywords'], return_text=False)
+    keywords = results['keywords']
+    if docs and len(docs)>1:
+        kw_dict = defaultdict(int, keywords)
+        for doc in docs[1:]:
+            results = analyze_doc(doc, keys=['keywords'], return_text=False)
+            for word, frequency in results['keywords']:
+                kw_dict[word] += frequency
+        keywords = sorted(kw_dict.items(), key=lambda x: x[1], reverse=True)
+    return keywords
 
 def visualize_text(text):
     language = settings.LANG_ID.classify(text)[0]
@@ -300,22 +456,113 @@ def compare_docs(doc_dicts):
     ret = {'n_docs': len(doc_dicts), 'similarity': similarities[0]}
     return ret
 
-def addto_docbin(docbin, doc, user_key):
-    docbin.add(doc)
-    path = os.path.join(settings.TEMP_ROOT, user_key)
-    docbin.to_disk(path)
+base_file_key_format = '_{principal_key}_{serial}_{language}'
+# user_file_key_format = 'u' + base_file_key_format
+# project_file_key_format = 'p' + base_file_key_format
 
-def get_docbin(user_key):
-    path = os.path.join(settings.TEMP_ROOT, user_key)
+def language_from_file_key(file_key):
+    return file_key[-2:]
+
+def file_key_from_principal_key(principal_key='?????', serial='???', language='??', principal_type='u'):
+    file_key_format = principal_type + base_file_key_format
+    return file_key_format.format(principal_key=principal_key, serial=serial, language=language)
+
+def file_key_from_path(path):
+    return Path(path).stem
+
+def path_from_file_key(file_key):
+    return os.path.join(settings.TEMP_ROOT, file_key)+'.spacy'
+
+def get_principal_docbins(user_key=None, project_key=None):
+    if user_key:
+        file_key_pattern = file_key_from_principal_key(principal_key=user_key, principal_type='u')
+    elif project_key:
+        file_key_pattern = file_key_from_principal_key(principal_key=project_key, principal_type='p')
+    path_pattern = os.path.join(settings.TEMP_ROOT, file_key_pattern)+'.spacy'
+    principal_docbins = []
+    for path in glob.glob(path_pattern):
+        file_key = file_key_from_path(path)
+        time_stamp = time.ctime(os.path.getmtime(path))
+        docbin = DocBin(store_user_data=True)
+        docbin.from_disk(path)
+        principal_docbins.append([file_key, docbin, time_stamp])
+    return principal_docbins
+        
+def make_serial(user_key, language='??'):
+    before_serial = os.path.join(settings.TEMP_ROOT, 'u_{user_key}_'.format(user_key=user_key))
+    after_serial = '_??.spacy'
+    path_pattern = before_serial+'*'+after_serial
+    path_names = glob.glob(path_pattern)
+    print('make_serial', path_pattern, path_names)
+    if path_names:
+        serials = [path_name[len(before_serial):-len(after_serial)] for path_name in path_names]
+        print('serials', serials)
+        serials.sort()
+        serial = '{:03d}'.format(int(serials[-1]) + 1)
+    else:
+        serial = '000'
+    return serial
+
+def make_docbin(user_key, language=None):
     docbin = DocBin(store_user_data=True)
-    if os.path.exists(path):
+    serial = make_serial(user_key, language='??')
+    file_key = file_key_from_principal_key(principal_key=user_key, serial=serial, language='ll', principal_type='u')
+    path = path_from_file_key(file_key)
+    docbin.to_disk(path)
+    return file_key, docbin
+
+def addto_docbin(docbin, doc, file_key):
+    n_docs = len(docbin)
+    if n_docs>0 and doc.lang_ != language_from_file_key(file_key):
+        return file_key, None
+    docbin.add(doc)
+    path = path_from_file_key(file_key)
+    docbin.to_disk(path)
+    if n_docs == 0:
+        file_key = file_key[:-2] + doc.lang_
+        os.rename(path, os.path.join(settings.TEMP_ROOT, file_key)+'.spacy')
+    return file_key, docbin
+
+def get_docbin(file_key=None, user_key=None, language='??'):
+    if file_key:
+        docbin = DocBin(store_user_data=True)
+        path = path_from_file_key(file_key)
         docbin.from_disk(path)
     else:
-        docbin.to_disk(path)
-    return docbin
-    
-def delete_docbin(user_key):
-    path = os.path.join(settings.TEMP_ROOT, user_key)
+        file_key, docbin = make_docbin(user_key, language=language)
+    return file_key, docbin
+
+def removefrom_docbin(file_key, obj_type, obj_id):
+    file_key, docbin = get_docbin(file_key=file_key)
+    language = language_from_file_key(file_key)
+    model = settings.LANGUAGE_MODELS[language]
+    index = i = 0
+    docs = []
+    for doc in list(docbin.get_docs(model.vocab)):
+        if doc._.obj_type==obj_type and doc._.obj_id==obj_id:
+            index = i
+        else:
+            docs.append(doc)
+        i += 1
+    delete_docbin(file_key)
+    docbin = DocBin(docs=docs, store_user_data=True)
+    path = path_from_file_key(file_key)
+    docbin.to_disk(path)
+    return index
+
+def get_docbin_summary(docbin, language):   
+    summary = []
+    if language in settings.SUPPORTED_LANGUAGES:
+        model = settings.LANGUAGE_MODELS[language]
+        docs = docbin.get_docs(model.vocab)
+        for doc in docs:
+            doc_summary = {'obj_type': doc._.obj_type, 'obj_id': doc._.obj_id, 'label': doc._.label, 'url': doc._.url}
+            doc_summary.update(get_doc_attributes(doc))
+            summary.append(doc_summary)
+    return summary 
+
+def delete_docbin(file_key):
+    path = path_from_file_key(file_key)
     if os.path.exists(path):
         os.remove(path)
 
