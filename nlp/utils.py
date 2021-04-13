@@ -493,10 +493,8 @@ def make_serial(user_key, language='??'):
     after_serial = '_??.spacy'
     path_pattern = before_serial+'*'+after_serial
     path_names = glob.glob(path_pattern)
-    print('make_serial', path_pattern, path_names)
     if path_names:
         serials = [path_name[len(before_serial):-len(after_serial)] for path_name in path_names]
-        print('serials', serials)
         serials.sort()
         serial = '{:03d}'.format(int(serials[-1]) + 1)
     else:
