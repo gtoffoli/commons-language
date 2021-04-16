@@ -292,6 +292,7 @@ def analyze_doc(doc, keys=[], return_text=True):
     if 'keywords' in keys:
         # top 10 most frequent keywords, based on tokens lemmatization
         frequency = defaultdict(int)
+        lemma_forms = defaultdict(set)
         lexical_attrs = {
             'urls': [],
             'emails': [],
@@ -305,7 +306,10 @@ def analyze_doc(doc, keys=[], return_text=True):
             if (token.like_num or token.is_digit):
                 lexical_attrs['nums'].append(token.text)
             if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
-                frequency[token.lemma_] += 1
+                lemma = token.lemma_
+                frequency[lemma] += 1
+                if 'lemma_forms' in keys:
+                    lemma_forms[lemma].add(token.text)
         """
         keywords = [keyword for keyword, frequency in sorted(
             frequency.items(), key=lambda k_v: k_v[1], reverse=True)][:10]
@@ -320,6 +324,8 @@ def analyze_doc(doc, keys=[], return_text=True):
             ret['keywords'] = ', '.join(keywords)
         else:
             ret['keywords'] = frequency_items
+            if 'lemma_forms' in keys:
+                ret['lemma_forms'] = lemma_forms
 
     if 'entities' in keys:
         # Named Entities
@@ -365,20 +371,15 @@ def analyze_doc(doc, keys=[], return_text=True):
 
     return ret
 
-# def get_sorted_keywords(language=None, doc=None, docs=[], docbin=None, text=None):
 def get_sorted_keywords(language=None, doc=None, docs=[], text=None):
-    """
-    if not doc:
-        status, doc = merge_docs(language=language, docs=docs, docbin=docbin, text=text)
-    results = analyze_doc(doc, keys=['keywords'], return_text=False)
-    """
     assert doc or docs or text
     if text:
         pass
     if docs:
         doc = docs[0]
-    results = analyze_doc(doc, keys=['keywords'], return_text=False)
+    results = analyze_doc(doc, keys=['keywords', 'lemma_forms'], return_text=False)
     keywords = results['keywords']
+    lemma_forms = results['lemma_forms']
     if docs and len(docs)>1:
         kw_dict = defaultdict(int, keywords)
         for doc in docs[1:]:
@@ -386,7 +387,7 @@ def get_sorted_keywords(language=None, doc=None, docs=[], text=None):
             for word, frequency in results['keywords']:
                 kw_dict[word] += frequency
         keywords = sorted(kw_dict.items(), key=lambda x: x[1], reverse=True)
-    return keywords
+    return keywords, lemma_forms
 
 def visualize_text(text):
     language = settings.LANG_ID.classify(text)[0]

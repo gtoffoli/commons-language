@@ -263,33 +263,45 @@ def compare_docs(request):
 @csrf_exempt
 def word_contexts(request):
     data = json.loads(request.body.decode('utf-8'))
-    MAX_KWS = 10
-    CONTEXT_SIZE = 2
+    MIN_KEYWORDS = 10
+    MIN_CONTEXTS = 3
+    CONTEXT_SIZE = 5
     file_key = data['file_key']
+    obj_type = data.get('obj_type', '')
+    obj_id = data.get('obj_id', '')
     file_key, docbin = get_docbin(file_key=file_key)
     language = language_from_file_key(file_key)
     model = settings.LANGUAGE_MODELS[language]
-    docs = list(docbin.get_docs(model.vocab))
+    # docs = list(docbin.get_docs(model.vocab))
+    docs = []
     i = 0
-    for doc in docs:
-        _init_doc(doc)
-        i += 1
-        doc._.label = 'doc_{}'.format(i)
-    keywords = get_sorted_keywords(language=language, docs=docs)
+    for doc in list(docbin.get_docs(model.vocab)):
+        if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
+            _init_doc(doc)
+            i += 1
+            doc._.label = 'doc_{}'.format(i)
+            docs.append(doc)
+    # keywords = get_sorted_keywords(language=language, docs=docs)
+    keywords, lemma_forms = get_sorted_keywords(language=language, docs=docs)
     keywords = [kw for kw in keywords if len(kw[0])>1]
     keywords_in_context = []
-    for word, frequency in keywords[:MAX_KWS]:
+    j = 0
+    for word, frequency in keywords:
         contexts_dict = \
-            kwic(docs, word, context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+            kwic(docs, list(lemma_forms[word]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
             glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
             glue=None, highlight_keyword=None)
         contexts = []
         for context_item in contexts_dict.items():
             for window in context_item[1]:
                 left = ' '.join(window[:CONTEXT_SIZE])
-                middle = ' '.join(window[CONTEXT_SIZE])
+                middle = window[CONTEXT_SIZE]
                 right = ' '.join(window[-CONTEXT_SIZE:])
                 contexts.append([left, middle, right])
-        keyword_in_context = {'kw': word, 'frequency': frequency, 'contexts': contexts}
-        keywords_in_context.append(keyword_in_context)
+        j += 1
+        if j >= MIN_KEYWORDS and frequency < MIN_CONTEXTS:
+            break
+        if contexts:
+            keyword_in_context = {'kw': word, 'frequency': frequency, 'contexts': contexts}
+            keywords_in_context.append(keyword_in_context)
     return JsonResponse({'keywords': keywords, 'kwics': keywords_in_context})
