@@ -272,7 +272,6 @@ def word_contexts(request):
     file_key, docbin = get_docbin(file_key=file_key)
     language = language_from_file_key(file_key)
     model = settings.LANGUAGE_MODELS[language]
-    # docs = list(docbin.get_docs(model.vocab))
     docs = []
     i = 0
     for doc in list(docbin.get_docs(model.vocab)):
@@ -281,14 +280,13 @@ def word_contexts(request):
             i += 1
             doc._.label = 'doc_{}'.format(i)
             docs.append(doc)
-    # keywords = get_sorted_keywords(language=language, docs=docs)
     keywords, lemma_forms = get_sorted_keywords(language=language, docs=docs)
     keywords = [kw for kw in keywords if len(kw[0])>1]
     keywords_in_context = []
     j = 0
-    for word, frequency in keywords:
+    for lemma, frequency in keywords:
         contexts_dict = \
-            kwic(docs, list(lemma_forms[word]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+            kwic(docs, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
             glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
             glue=None, highlight_keyword=None)
         contexts = []
@@ -302,6 +300,6 @@ def word_contexts(request):
         if j >= MIN_KEYWORDS and frequency < MIN_CONTEXTS:
             break
         if contexts:
-            keyword_in_context = {'kw': word, 'frequency': frequency, 'contexts': contexts}
+            keyword_in_context = {'kw': lemma, 'frequency': frequency, 'contexts': contexts}
             keywords_in_context.append(keyword_in_context)
     return JsonResponse({'keywords': keywords, 'kwics': keywords_in_context})

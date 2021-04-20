@@ -310,14 +310,6 @@ def analyze_doc(doc, keys=[], return_text=True):
                 frequency[lemma] += 1
                 if 'lemma_forms' in keys:
                     lemma_forms[lemma].add(token.text)
-        """
-        keywords = [keyword for keyword, frequency in sorted(
-            frequency.items(), key=lambda k_v: k_v[1], reverse=True)][:10]
-        if return_text:
-            ret['keywords'] = ', '.join(keywords)
-        else:
-            ret['keywords'] = keywords
-        """
         frequency_items = sorted(frequency.items(), key=lambda k_v: k_v[1], reverse=True)
         if return_text:
             keywords = [item[0] for item in frequency_items[:10]]
@@ -383,9 +375,11 @@ def get_sorted_keywords(language=None, doc=None, docs=[], text=None):
     if docs and len(docs)>1:
         kw_dict = defaultdict(int, keywords)
         for doc in docs[1:]:
-            results = analyze_doc(doc, keys=['keywords'], return_text=False)
-            for word, frequency in results['keywords']:
-                kw_dict[word] += frequency
+            results = analyze_doc(doc, keys=['keywords', 'lemma_forms'], return_text=False)
+            for lemma, frequency in results['keywords']:
+                kw_dict[lemma] += frequency
+            for lemma, tokens in results['lemma_forms'].items():
+                lemma_forms[lemma] = lemma_forms[lemma].union(tokens)
         keywords = sorted(kw_dict.items(), key=lambda x: x[1], reverse=True)
     return keywords, lemma_forms
 
