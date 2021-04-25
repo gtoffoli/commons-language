@@ -1,6 +1,15 @@
-# NLPBuddy - Open Source Text Analysis Tool
+# commons-language - Open Source Text Analysis Tool
 
 ## About the project
+
+commons-language is under developent as an extension of the project: https://github.com/gtoffoli/commons.
+It is intended to be run as a separate server process, providing services to other web application through HTTP api.
+
+commons-language was initially created as a clone of NLPBuddy: https://github.com/eellak/nlpbuddy; it still shares with NLPBuddy the dependency on the spaCy library.
+
+The documentation has to be written yet. Meanwhile, we keep below the original presentation of NLPBuddy.
+
+==========
 
 NLPBuddy is a text analysis application for performing common NLP tasks through a web dashboard interface and an API. 
 
@@ -27,8 +36,7 @@ A working demo can be found on [http://www.nlpbuddy.io/](http://www.nlpbuddy.io/
 
 ## Usage
 Enter text and hit 'Analyze it', 
-
-![alt text](https://raw.githubusercontent.com/eellak/text-analysis/master/static/img/screenshot1.jpg)
+[original image removed]
 
 ## API Usage
 [https://github.com/eellak/text-analysis/wiki/API-usage](https://github.com/eellak/text-analysis/wiki/API-usage)
