@@ -167,6 +167,7 @@ LANGUAGE_MAPPING = {
         'en': 'English',
         'de': 'German',
         'es': 'Spanish',
+        'pl': 'Polish',
         'pt': 'Portuguese',
         'fr': 'French',
         'it': 'Italian',
@@ -187,6 +188,7 @@ AVAILABLE_LANGUAGE_MODELS['es'] = ('es_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['fr'] = ('fr_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['it'] = ('it_core_news_md', 'it_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['nl'] = ('nl_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['pl'] = ('pl_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['pt'] = ('pt_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['lt'] = ('lt_core_news_sm',)
 
