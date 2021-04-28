@@ -13,7 +13,6 @@ builder = lemmatizer_lookups_builder(in_path=path, out_path=path, in_name=in_nam
 # >>> builder.morphit_pos_set()
 # {'ABL', 'SENT', 'NUM', 'SYM', 'NPR', 'POSS', 'PON', 'ADV', 'VER', 'COM', 'SI', 'NOUN', 'MOD', 'AUX', 'TALE', 'PERS', 'INT', 'SMI', 'ASP', 'CARD', 'DEMO', 'CAU', 'ADJ', 'ARTPRE', 'CI', 'PRE', 'DET', 'ART', 'CON', 'INDEF', 'CE', 'CLI', 'PRO', 'CHE', 'WH', 'NE'}
 builder.extract_lookup_tables()
-builder.compute_legacy()
 builder.make_lookups_bin()
 """
 
@@ -27,9 +26,8 @@ class lemmatizer_lookups_builder():
         self.tag_map = tag_map or {
            'ADJ': ['ADJ', 'DET', 'TALE',],
            'ADV': ['ADV',],
-           'ART': ['ART', 'ARTPRE',],
            'AUX': ['AUX', 'ASP', 'CAU', 'MOD',],
-           'DET': ['DET',],
+           'DET': ['ART', 'ARTPRE', 'DET',],
            'NOUN': ['NOUN', 'NPR',],
            'PRON': ['PRO',],
            'ADP': ['PRE', 'ARTPRE'],
@@ -75,6 +73,7 @@ class lemmatizer_lookups_builder():
                 outfile.write(json.dumps(out_dict, indent=2))
             self.infile.close()
 
+    """
     def compute_legacy(self):
         it_lookup_path = os.path.join(self.out_path, 'it_lemma_lookup.json')
         with open(it_lookup_path) as infile:
@@ -94,15 +93,18 @@ class lemmatizer_lookups_builder():
         outfile = open(os.path.join(self.out_path, 'it_lemma_lookup_legacy.json'), 'w')
         outfile.write(json.dumps(legacy_dict, indent=2))
         outfile.close()
+    """
 
     def make_lookups_bin(self, lookup_name_pattern='lemma_lookup_{}', filename_pattern='it_lemma_lookup_{}.json'):
         lookups = Lookups()
         lookup_keys = list(self.tag_map.keys())
-        lookup_keys.append('LEGACY')
         for lookup_pos in lookup_keys:
             lookup_name = lookup_name_pattern.format(lookup_pos.lower())
             filename = filename_pattern.format(lookup_pos.lower())
             with open(os.path.join(self.out_path, filename)) as json_file:
                 lookup_dict = json.load(json_file)
             lookups.add_table(lookup_name, lookup_dict)
+        with open(os.path.join(self.out_path, 'it_lemma_lookup.json')) as json_file:
+            lookup_dict = json.load(json_file)
+        lookups.add_table('lemma_lookup', lookup_dict)
         lookups.to_disk(self.out_path, 'lookups.bin')

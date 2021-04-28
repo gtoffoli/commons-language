@@ -14,9 +14,9 @@ class ItalianLemmatizer(Lemmatizer):
     def get_lookups_config(cls, mode: str) -> Tuple[List[str], List[str]]:
         if mode == "pos_lookup":
             required = [ 
-                "lemma_lookup_art", "lemma_lookup_num", "lemma_lookup_det", "lemma_lookup_adj",
+                "lemma_lookup_num", "lemma_lookup_det", "lemma_lookup_adp", "lemma_lookup_adj",
                 "lemma_lookup_noun", "lemma_lookup_pron", "lemma_lookup_verb", "lemma_lookup_aux", 
-                "lemma_lookup_adp", "lemma_lookup_adv", "lemma_lookup_other", "lemma_lookup_legacy", # 
+                "lemma_lookup_adv", "lemma_lookup_other", 
             ]
             return (required, [])
         else:
@@ -44,10 +44,10 @@ class ItalianLemmatizer(Lemmatizer):
             else:
                 lemma = lookup_table.get(string, '')
         if not lemma:
-            lookup_table = self.lookups.get_table("lemma_lookup_" + 'other', {})
+            lookup_table = self.lookups.get_table("lemma_lookup_other")
             lemma = lookup_table.get(string, '')
         if not lemma:
-            lookup_table = self.lookups.get_table("lemma_lookup_" + 'legacy', {})
+            lookup_table = self.lookups.get_table("lemma_lookup") # "legacy" lookup table
             lemma = lookup_table.get(string, string.lower())
         return [lemma]
             
