@@ -3,6 +3,77 @@ from typing import List, Dict, Tuple
 from ...pipeline import Lemmatizer
 from ...tokens import Token
 
+prep_art_dict = {
+  'al': ['a', 'il'],
+  'allo': ['a', 'il'],
+  'ai': ['a', 'il'],
+  'agli': ['a', 'il'],
+  'alla': ['a', 'il'],
+  'alle': ['a', 'il'],
+  "all'": ['a', 'il'],
+  'del': ['di', 'il'],
+  'dello': ['di', 'il'],
+  'dei': ['di', 'il'],
+  'degli': ['di', 'il'],
+  'della': ['di', 'il'],
+  'delle': ['di', 'il'],
+  "dell'": ['di', 'il'],
+  'dal': ['da', 'il'],
+  'dallo': ['da', 'il'],
+  'dai': ['da', 'il'],
+  'dagli': ['da', 'il'],
+  'dalla': ['da', 'il'],
+  'dalle': ['da', 'il'],
+  "dall'": ['da', 'il'],
+  'nel': ['in', 'il'],
+  'nello': ['in', 'il'],
+  'nei': ['in', 'il'],
+  'negli': ['in', 'il'],
+  'nella': ['in', 'il'],
+  'nelle': ['in', 'il'],
+  "nell'": ['in', 'il'],
+  'col': ['con', 'il'],
+  'collo': ['con', 'il'],
+  'coi': ['con', 'il'],
+  'cogli': ['con', 'il'],
+  'colla': ['con', 'il'],
+  'colle': ['con', 'il'],
+  "coll'": ['con', 'il'],
+  'pel': ['per', 'il'],
+  'pello': ['per', 'il'],
+  'pei': ['per', 'il'],
+  'pegli': ['per', 'il'],
+  'pella': ['per', 'il'],
+  'pelle': ['per', 'il'],
+  "pell'": ['per', 'il'],
+  'sul': ['su', 'il'],
+  'sullo': ['su', 'il'],
+  'sui': ['su', 'il'],
+  'sugli': ['su', 'il'],
+  'sulla': ['su', 'il'],
+  'sulle': ['su', 'il'],
+  "sull'": ['su', 'il'],
+  'tral': ['tra', 'il'],
+  'trallo': ['tra', 'il'],
+  'trai': ['tra', 'il'],
+  'tragli': ['tra', 'il'],
+  'tralla': ['tra', 'il'],
+  'tralle': ['tra', 'il'],
+  "trall'": ['tra', 'il'],
+  'fral': ['fra', 'il'],
+  'frallo': ['fra', 'il'],
+  'frai': ['fra', 'il'],
+  'fragli': ['fra', 'il'],
+  'fralla': ['fra', 'il'],
+  'fralle': ['fra', 'il'],
+  "frall'": ['fra', 'il'],
+}
+pron_part_dict = {
+  'glielo': ['gli', 'lo'],
+  'gliele': ['gli', 'lo'],
+  # ...
+}
+
 class ItalianLemmatizer(Lemmatizer):
     # This lemmatizer was adapted from the Polish one (April 2021).
     # It implements lookup lemmatization based on the morphological lexicon morph-it (Baroni and Zanchetta).
@@ -37,7 +108,13 @@ class ItalianLemmatizer(Lemmatizer):
         else:
             if univ_pos != "PROPN":
                 string = string.lower()
-            if univ_pos == "ADJ":
+            if univ_pos == "DET":
+                return self.lemmatize_det(string, morphology, lookup_table)
+            elif univ_pos == "PRON":
+                return self.lemmatize_pron(string, morphology, lookup_table)
+            elif univ_pos == "ADP":
+                return self.lemmatize_adp(string, morphology, lookup_table)
+            elif univ_pos == "ADJ":
                 return self.lemmatize_adj(string, morphology, lookup_table)
             elif univ_pos == "VERB":
                 return self.lemmatize_verb(string, morphology, lookup_table)
@@ -50,16 +127,46 @@ class ItalianLemmatizer(Lemmatizer):
             lookup_table = self.lookups.get_table("lemma_lookup") # "legacy" lookup table
             lemma = lookup_table.get(string, string.lower())
         return [lemma]
+
+    def lemmatize_det(
+        self, string: str, morphology: dict, lookup_table: Dict[str, str]
+    ) -> List[str]:
+        if string in ["l'", 'lo', 'la', 'i', 'gli', 'le',]:
+            return ['il']
+        if string in ["un'", 'un', 'una']:
+            return ['uno']
+        return [lookup_table.get(string, string)]
+
+    def lemmatize_pron(
+        self, string: str, morphology: dict, lookup_table: Dict[str, str]
+    ) -> List[str]:
+        if string in ["l'", 'li', 'la', 'gli', 'le',]:
+            return ['lo']
+        if string in ["un'", 'un', 'una']:
+            return ['uno']
+        lemma = lookup_table.get(string, string)
+        if lemma == 'alcun':
+            lemma = 'alcuno'
+        elif lemma == 'qualcun':
+            lemma = 'qualcuno'
+        return [lemma]
+
+    def lemmatize_adp(
+        self, string: str, morphology: dict, lookup_table: Dict[str, str]
+    ) -> List[str]:
+        if string == "d'":
+            return ['di']
+        return [lookup_table.get(string, string)]
             
     def lemmatize_adj(
         self, string: str, morphology: dict, lookup_table: Dict[str, str]
     ) -> List[str]:
-        return [lookup_table.get(string, string)]
-
-    def lemmatize_verb(
-        self, string: str, morphology: dict, lookup_table: Dict[str, str]
-    ) -> List[str]:
-        return [lookup_table.get(string, string)]
+        lemma = lookup_table.get(string, string)
+        if lemma == 'alcun':
+            lemma = 'alcuno'
+        elif lemma == 'qualcun':
+            lemma = 'qualcuno'
+        return [lemma]
 
     def lemmatize_noun(
         self, string: str, morphology: dict, lookup_table: Dict[str, str]
@@ -72,4 +179,9 @@ class ItalianLemmatizer(Lemmatizer):
             elif string in lookup_table:
                 return [lookup_table[string]]
             return [string.lower()]
+        return [lookup_table.get(string, string)]
+
+    def lemmatize_verb(
+        self, string: str, morphology: dict, lookup_table: Dict[str, str]
+    ) -> List[str]:
         return [lookup_table.get(string, string)]
