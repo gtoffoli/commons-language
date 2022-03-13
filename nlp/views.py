@@ -266,20 +266,26 @@ def word_contexts(request):
     MIN_KEYWORDS = 10
     MIN_CONTEXTS = 3
     CONTEXT_SIZE = 5
-    file_key = data['file_key']
-    obj_type = data.get('obj_type', '')
-    obj_id = data.get('obj_id', '')
-    file_key, docbin = get_docbin(file_key=file_key)
-    language = language_from_file_key(file_key)
-    model = settings.LANGUAGE_MODELS[language]
-    docs = []
-    i = 0
-    for doc in list(docbin.get_docs(model.vocab)):
-        if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
-            _init_doc(doc)
-            i += 1
-            doc._.label = 'doc_{}'.format(i)
-            docs.append(doc)
+    text = data.get('text', None)
+    if text is not None:
+        ret = analyze_text(text)
+        language = ret['language']
+        docs = [ret['doc']]
+    else:
+        file_key = data['file_key']
+        obj_type = data.get('obj_type', '')
+        obj_id = data.get('obj_id', '')
+        file_key, docbin = get_docbin(file_key=file_key)
+        language = language_from_file_key(file_key)
+        model = settings.LANGUAGE_MODELS[language]
+        docs = []
+        i = 0
+        for doc in list(docbin.get_docs(model.vocab)):
+            if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
+                _init_doc(doc)
+                i += 1
+                doc._.label = 'doc_{}'.format(i)
+                docs.append(doc)
     keywords, lemma_forms = get_sorted_keywords(language=language, docs=docs)
     keywords = [kw for kw in keywords if len(kw[0])>1]
     keywords_in_context = []

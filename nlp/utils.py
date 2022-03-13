@@ -133,6 +133,7 @@ def analyze_text(text, language=None, doc=None):
     if not (language and doc):
         doc = text_to_doc(text)
         language = doc.lang_
+        ret['doc'] = doc
     ret['language'] = settings.LANGUAGE_MAPPING[language]
     # analyzed text containing lemmas, pos and dep. Entities are coloured
     analyzed_text = ''

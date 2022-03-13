@@ -1,23 +1,22 @@
+"""
+The code below aims to document how the lookup tables for the Italian POS-aware Lemmatizer
+have been derived from the morphological lexicon morph-it (by Barone and Zanchetta) and from
+the lookup table used by the previous, non-POS-aware, version of the lemmatizer ("legacy" table).
+In fact, it was used to build the individual lookup files (json) associated to different POS-tags
+and the binary file including representing their merging.
+The tag_map in the creator method (__init__) specifies the mapping from the tag-set in morph-it
+(right side) to the universal tag-set used by spaCy; it is a many-to-one mapping (some tags are
+repeated in the right side) and a catch-all entry "OTHER" is included to make it complete.
+Obviously this mapping could be ameliored by means of deeper analysis and some experimentation.
+Entries of the "legacy" table whose word forms don't occur in morph-it have been kept in an additional table.
+"""
+
 from collections import OrderedDict
 import os
 import json
 from spacy.lookups import Lookups
 
-
-"""
-import nlp
-from nlp.spacy_custom.it.scripts import lemmatizer_lookups_builder
-path = '\\_Tecnica\\AI\\CL\\spacy\\lemmatizer\\it'
-in_name = 'morph-it.txt'
-builder = lemmatizer_lookups_builder(in_path=path, out_path=path, in_name=in_name)
-# >>> builder.morphit_pos_set()
-# {'ABL', 'SENT', 'NUM', 'SYM', 'NPR', 'POSS', 'PON', 'ADV', 'VER', 'COM', 'SI', 'NOUN', 'MOD', 'AUX', 'TALE', 'PERS', 'INT', 'SMI', 'ASP', 'CARD', 'DEMO', 'CAU', 'ADJ', 'ARTPRE', 'CI', 'PRE', 'DET', 'ART', 'CON', 'INDEF', 'CE', 'CLI', 'PRO', 'CHE', 'WH', 'NE'}
-builder.extract_lookup_tables()
-builder.make_lookups_bin()
-"""
-
-
-class lemmatizer_lookups_builder():
+class ItalianLemmatizerLookupsBuilder():
     
     def __init__(self, in_path='.', out_path='.', in_name='morph-it.txt', tag_map={}):
         self.in_path = in_path
@@ -73,28 +72,6 @@ class lemmatizer_lookups_builder():
                 outfile.write(json.dumps(out_dict, indent=2))
             self.infile.close()
 
-    """
-    def compute_legacy(self):
-        it_lookup_path = os.path.join(self.out_path, 'it_lemma_lookup.json')
-        with open(it_lookup_path) as infile:
-            it_lookup_dict = json.load(infile)
-        morph_it_dict = OrderedDict()
-        morph_it_path = os.path.join(self.in_path, 'morph-it.txt')
-        with open(morph_it_path) as infile:
-            line = infile.readline()
-            while line:
-                word, lemma, morph = line.split('\t')
-                morph_it_dict[word] = lemma
-                line = infile.readline()
-        legacy_dict = OrderedDict()
-        for word, lemma in it_lookup_dict.items():
-            if word not in morph_it_dict:
-                legacy_dict[word] = lemma
-        outfile = open(os.path.join(self.out_path, 'it_lemma_lookup_legacy.json'), 'w')
-        outfile.write(json.dumps(legacy_dict, indent=2))
-        outfile.close()
-    """
-
     def make_lookups_bin(self, lookup_name_pattern='lemma_lookup_{}', filename_pattern='it_lemma_lookup_{}.json'):
         lookups = Lookups()
         lookup_keys = list(self.tag_map.keys())
@@ -108,3 +85,17 @@ class lemmatizer_lookups_builder():
             lookup_dict = json.load(json_file)
         lookups.add_table('lemma_lookup', lookup_dict)
         lookups.to_disk(self.out_path, 'lookups.bin')
+
+"""
+The code
+
+import nlp
+from nlp.spacy_custom.it.scripts import lemmatizer_lookups_builder
+path = '\\_Tecnica\\AI\\CL\\spacy\\lemmatizer\\it'
+in_name = 'morph-it.txt'
+builder = lemmatizer_lookups_builder(in_path=path, out_path=path, in_name=in_name)
+# >>> builder.morphit_pos_set()
+# {'ABL', 'SENT', 'NUM', 'SYM', 'NPR', 'POSS', 'PON', 'ADV', 'VER', 'COM', 'SI', 'NOUN', 'MOD', 'AUX', 'TALE', 'PERS', 'INT', 'SMI', 'ASP', 'CARD', 'DEMO', 'CAU', 'ADJ', 'ARTPRE', 'CI', 'PRE', 'DET', 'ART', 'CON', 'INDEF', 'CE', 'CLI', 'PRO', 'CHE', 'WH', 'NE'}
+builder.extract_lookup_tables()
+builder.make_lookups_bin()
+"""
