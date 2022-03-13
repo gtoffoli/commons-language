@@ -114,6 +114,7 @@ def analyze(request, return_doc=False):
             ret = doc_json
         else:
             ret = analyze_text(text)
+            ret['doc'] = None
         return JsonResponse(ret)
     else:
         ret = {'methods_allowed': 'POST'}
