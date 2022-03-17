@@ -74,11 +74,15 @@ def visualize_view(request):
     ret['json'] = markup
     return render(request, 'nlp/visualize.html', ret)
 
+@csrf_exempt
 def configuration(request):
     ret = {}
     ret['app_version'] = settings.APP_VERSION
     ret['spacy_version'] = spacy.__version__
-    ret['spacy_models'] = settings.LANGUAGE_MODELS
+    models = []
+    for code, model in settings.LANGUAGE_MODELS.items():
+        models.append("{}_{}-{}".format(code, model._meta['name'], model._meta['version']))
+    ret['spacy_models'] = models
     return JsonResponse(ret)
 
 @csrf_exempt
