@@ -74,7 +74,7 @@ def visualize_view(request):
     ret['json'] = markup
     return render(request, 'nlp/visualize.html', ret)
 
-def spacy_configuration(request):
+def configuration(request):
     ret = {}
     ret['app_version'] = settings.APP_VERSION
     ret['spacy_version'] = spacy.__version__
