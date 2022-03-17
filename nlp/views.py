@@ -1,4 +1,5 @@
 import json
+import spacy
 from spacy.tokens import Doc
 from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
 from django.shortcuts import render
@@ -73,6 +74,12 @@ def visualize_view(request):
     ret['json'] = markup
     return render(request, 'nlp/visualize.html', ret)
 
+def spacy_configuration(request):
+    ret = {}
+    ret['app_version'] = settings.APP_VERSION
+    ret['spacy_version'] = spacy.__version__
+    ret['spacy_models'] = settings.LANGUAGE_MODELS
+    return JsonResponse(ret)
 
 @csrf_exempt
 def analyze(request, return_doc=False):

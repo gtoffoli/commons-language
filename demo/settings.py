@@ -18,6 +18,8 @@ SECRET_KEY = 'zty*m5%vhs&odlx&!!_y63p^un(4!_31h5h@*tqt&4!&$rt0c#'
 DEBUG = True
 
 # Application definition
+__version__ = '0.2.0'
+APP_VERSION = __version__
 
 INSTALLED_APPS = [
     'django.contrib.admin',
