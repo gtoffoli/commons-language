@@ -11,7 +11,7 @@ urlpatterns = [
     url(r'^$', views.index),
     url(r'^about$', views.about, name='nlp.views.about'),
     url(r'^gsoc$', views.gsoc, name='nlp.views.gsoc'),
-    url(r'^api/configuration', views.analyze, name='nlp.views.configuration'),
+    url(r'^api/configuration', views.configuration, name='nlp.views.configuration'),
     url(r'^api/analyze$', views.analyze, name='nlp.views.analyze'),
     url(r'^api/doc$', views.doc, name='nlp.views.doc'),
     url(r'^api/compare$', views.compare, name='nlp.views.compare'),
