@@ -320,4 +320,5 @@ def word_contexts(request):
         if contexts:
             keyword_in_context = {'kw': lemma, 'frequency': frequency, 'contexts': contexts}
             keywords_in_context.append(keyword_in_context)
-    return JsonResponse({'keywords': keywords, 'kwics': keywords_in_context})
+    # return JsonResponse({'keywords': keywords, 'kwics': keywords_in_context})
+    return JsonResponse({'language': language, 'keywords': keywords, 'kwics': keywords_in_context})
