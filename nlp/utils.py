@@ -97,6 +97,22 @@ def customize_model(model):
     except:
         pass
 
+def doc_to_json(doc, language):
+    json = doc.to_json()
+    json['language'] = language
+    start_dict = {}
+    for token_data in json['tokens']:
+        start_dict[token_data['start']] = token_data
+    for token in doc:
+        token_data = start_dict[token.idx]
+        token_data['stop'] = token.is_stop
+        token_data['lemma'] = token.lemma_
+        token_data['oov'] = token.is_oov
+        token_data['num'] = token.like_num
+        token_data['email'] = token.like_email
+        token_data['url'] = token.like_url
+    return json
+
 # as a side-effect, extends the language model
 def text_to_doc(text, return_json=False, doc_key=None):
     language = settings.LANG_ID.classify(text)[0]
@@ -106,6 +122,7 @@ def text_to_doc(text, return_json=False, doc_key=None):
     _init_doc(doc)
     doc.user_data.update({'doc_key': doc_key})
     if return_json:
+        """
         json = doc.to_json()
         json['language'] = language
         start_dict = {}
@@ -119,6 +136,8 @@ def text_to_doc(text, return_json=False, doc_key=None):
             token_data['num'] = token.like_num
             token_data['email'] = token.like_email
             token_data['url'] = token.like_url
+        """
+        json = doc_to_json(doc, language)
         return json
     else:
         return doc
@@ -130,7 +149,9 @@ def get_doc_attributes(doc):
 def analyze_text(text, language=None, doc=None):
     ret = {}
     # language identification
-    if not (language and doc):
+    if language and doc:
+        text = doc.text
+    else:
         doc = text_to_doc(text)
         language = doc.lang_
         ret['doc'] = doc
@@ -543,6 +564,10 @@ def removefrom_docbin(file_key, obj_type, obj_id):
     path = path_from_file_key(file_key)
     docbin.to_disk(path)
     return index
+
+def get_docs(docbin, language):
+    model = settings.LANGUAGE_MODELS[language]
+    return docbin.get_docs(model.vocab)   
 
 def get_docbin_summary(docbin, language):   
     summary = []

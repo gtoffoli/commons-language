@@ -10,6 +10,7 @@ from .utils import analyze_text, visualize_text
 from .utils import text_to_list, text_to_doc, get_doc_attributes, compare_docs
 from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
 from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
+from .utils import get_docs, doc_to_json
 from .utils import language_from_file_key, get_sorted_keywords, compare_docbin
 
 if settings.ALLOW_URL_IMPORTS:
@@ -64,7 +65,6 @@ def gsoc(request):
     context = {}
     return render(request, 'nlp/gsoc.html', context)
 
-
 def visualize_view(request):
     ret = {}
     text = request.POST.get('sentences')
@@ -86,54 +86,67 @@ def configuration(request):
     return JsonResponse(ret)
 
 @csrf_exempt
-def analyze(request, return_doc=False):
+def analyze(request):
     'API text analyze view'
     if request.method == 'POST':
-        text = request.body.decode('utf-8')
-        try:
-            text = json.loads(text)['text']
-        except ValueError:
-            # catch POST form as well
-            for key in request.POST.dict().keys():
-                text = key
-
-        if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
-            page = requests.get(text)
-            doc = Document(page.text)
-            soup = BeautifulSoup(doc.summary())
-            text = soup.get_text()
-            title = doc.title().strip()
-            text = '{0}.\n{1}'.format(title, text)
-
-        if not text:
-            response = JsonResponse(
-                {'status': 'false', 'message': 'need some text here!'})
-            response.status_code = 400
-            return response
-
-        # add some limit here
-        text = text[:200000]
-        if return_doc:
-            # language, doc_json = text_to_doc(text, return_json=True)
-            doc_json = text_to_doc(text, return_json=True)
-            language = doc_json['language']
-            if not language:
-                response = JsonResponse(
-                    {'status': 'false', 'message': 'unrecognized language'})
-                response.status_code = 400
-                return response
-            ret = doc_json
-        else:
-            ret = analyze_text(text)
-            ret['doc'] = None
+        doc = docs(request, return_json=False)[0]
+        language = doc.lang_
+        ret = analyze_text('', doc=doc, language=language)
+        ret['doc'] = None
+        ret.update(doc_to_json(doc, language))
         return JsonResponse(ret)
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
 
 @csrf_exempt
-def doc(request):
-    return analyze(request, return_doc=True)
+def docs(request, return_json=True):
+    """
+    API view docs()
+    """
+    if request.method == 'POST':
+        data = json.loads(request.body.decode('utf-8'))
+        text = data.get('text', '')
+        file_key = data.get('file_key', '')
+        obj_type = data.get('obj_type', '')
+        obj_id = data.get('obj_id', '')
+        if file_key:
+            language = language_from_file_key(file_key)
+            file_key, docbin = get_docbin(file_key=file_key)
+            docs = get_docs(docbin, language)
+            if obj_type and obj_id:
+                for doc in docs:
+                    if doc._.obj_type == obj_type and doc._.obj_id == obj_id:
+                        docs = [doc]
+                        break
+            if return_json:
+                data = [doc_to_json(doc) for doc in docs]
+                return JsonResponse(data) # return list with 1 doc as json on API
+            else:
+                return docs # return a list of docs internally
+        else:
+            if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
+                page = requests.get(text)
+                doc = Document(page.text)
+                soup = BeautifulSoup(doc.summary())
+                text = soup.get_text()
+                title = doc.title().strip()
+                text = '{0}.\n{1}'.format(title, text) 
+            if not text:
+                response = JsonResponse(
+                    {'status': 'false', 'message': 'need some text here!'})
+                response.status_code = 400
+                return response   
+            # add some limit here
+            text = text[:200000]
+            if return_json:
+                data = [text_to_doc(text, return_json=True)]
+                return JsonResponse(data) # return list with 1 doc as json on API
+            else:
+                return [text_to_doc(text)] # return list with 1 doc internally
+    else:
+        ret = {'methods_allowed': 'POST'}
+        return JsonResponse(ret)
 
 @csrf_exempt
 def compare(request):
