@@ -165,10 +165,12 @@ import spacy
 
 # this is used to display the language name
 LANGUAGE_MAPPING = {
+        'ar': 'Arabic',
         'el': 'Greek',
         'en': 'English',
         'de': 'German',
         'es': 'Spanish',
+        'hr': 'Croatian',
         'pl': 'Polish',
         'pt': 'Portuguese',
         'fr': 'French',
@@ -180,7 +182,7 @@ LANGUAGE_MAPPING = {
 # load any spaCy models that are installed
 # this takes some time to load so doing it here and hopefully this improves performance
 
-SUPPORTED_LANGUAGES = ['de', 'el', 'en', 'es', 'fr', 'it', 'nl', 'pt']
+SUPPORTED_LANGUAGES = ['de', 'el', 'en', 'es', 'fr', 'it', 'nl', 'pt', 'lt', 'hr',]
 
 AVAILABLE_LANGUAGE_MODELS = {}
 AVAILABLE_LANGUAGE_MODELS['de'] = ('de_core_news_sm',)
@@ -193,6 +195,13 @@ AVAILABLE_LANGUAGE_MODELS['nl'] = ('nl_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['pl'] = ('pl_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['pt'] = ('pt_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['lt'] = ('lt_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['hr'] = ('hr_core_news_sm',)
+
+import site
+sitepackages_dir = None
+for sp in site.getsitepackages():
+    if sp.endswith('site-packages'):
+        sitepackages_dir = sp
 
 LANGUAGE_MODELS = {}
 for language in SUPPORTED_LANGUAGES:
@@ -201,8 +210,12 @@ for language in SUPPORTED_LANGUAGES:
             LANGUAGE_MODELS[language] = spacy.load(model) # (language)
             break
         except OSError:
-            print('Warning: model {} not found.'.format(model))
-            continue
+            try:
+                LANGUAGE_MODELS[language] = spacy.load(os.path.join(sitepackages_dir, model)) # (language)
+                break
+            except OSError:
+                print('Warning: model {} not found.'.format(model))
+                continue
 
 # this is used for language identification. Loading here to avoid importing many times
 import langid as LANG_ID
