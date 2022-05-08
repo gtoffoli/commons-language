@@ -1,6 +1,7 @@
 """
 The code below aims to document how the lookup tables for the Croatian POS-aware Lemmatizer
-have been derived from the morphological lexicon hrLex 1.3, by .
+have been derived from the morphological lexicon hrLex 1.3
+(see https://www.clarin.si/repository/xmlui/handle/11356/1232).
 The tag_map in the creator method of the CroatianLemmatizerLookupsBuilder class specifies a mapping
 from the universal tag-set used by spaCy to the tag-set used by hrLex 1.3.
 It is a one-to-many mapping; overlaps aim to tackle possible misalignments in tag assignment.
@@ -37,7 +38,7 @@ class CroatianLemmatizerLookupsBuilder():
         }
 
     def lexicon_preview(self, n=100):
-        """ This method just returns prints the first N lines of the lexicon
+        """ This method just prints the first N lines of the lexicon
         >>> from nlp.spacy_custom.hr.lemmatizer_lookups_builder import CroatianLemmatizerLookupsBuilder as builder 
         >>> builder = CroatianLemmatizerLookupsBuilder()
         >>> builder().lexicon_preview()

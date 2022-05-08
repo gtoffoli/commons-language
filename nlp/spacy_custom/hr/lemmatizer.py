@@ -4,9 +4,10 @@ from ...pipeline import Lemmatizer
 from ...tokens import Token
 
 """ This lemmatizer was adapted from the Italian one (version ..) and the Polish one (version of April 2021).
-    It implements lookup lemmatization based on the inflectional lexicon hrLex 1.3 ().
+    It implements lookup lemmatization based on the inflectional lexicon hrLex 1.3
+    (https://www.clarin.si/repository/xmlui/handle/11356/1232).
     The lookup tables were built using the CroatianLemmatizerLookupsBuilder class
-    defined in the file lemmatizer_lookups_builder_hr.py (see example code in that same file).
+    defined in the module lemmatizer_lookups_builder_hr (see example code in that same file).
 """
 
 class CroatianLemmatizer(Lemmatizer):

@@ -49,11 +49,10 @@ CONLLU_DICT = {
 
 def normalize_split_hr500k(in_path):
     """ From the conll format of the hr500k.conllu treebank,
-        remove the comment lines,
-        extract only the first 11 columns (10 + iob) to be used as training data
-        and keep only sentences just after comment # sent_id = train.. or # sent_id = test.. 
-        # and split them between train and eval files in the 3:1 ratio.
-        see: https://www.clarin.si/repository/xmlui/handle/11356/1183 """
+        remove the comment lines and keep only sentences with UD annotation, 
+        split them between train and test files in the 3:1 ratio,
+        extract from them the first 10 columns
+        see: https://github.com/reldi-data/hr500k/blob/master/hr500k.conllu """
     file_ext = '.'+in_path.split('.')[-1]
     file_name = in_path.replace(file_ext, '')
     train_path = file_name+'-train'+file_ext
