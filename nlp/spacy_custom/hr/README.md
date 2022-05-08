@@ -37,7 +37,18 @@ Then, I created a POS-based lemmatizer, by exploiting the Inflexional lexicon hr
 Unlike another lexicon that was mentioned in spaCy issue #4164 (2019), hrLex 1.3 seems to have a convenient licence: "Creative Commons - Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
 I've moved along the lines of the Polish lemmatizer, which I had already imitated for Italian.
 Since I don't know Croatian, I worked a little blind, without being able to apply any optimization.
-Unfortunately, the lookup tables are quite large, possibly because Croatian is a highly inflectional language: the size of lookups.bin is 39874KB; I guess that a rule-based lemmatizer would be much more efficient.
+Unfortunately, the lookup tables are quite large, possibly because Croatian is a highly inflectional language: the size of lookups.bin is 39874KB; I guess that a rule-based lemmatizer would be much more efficient. Please note also that the lookup tables could be unduly redundand: I've defined the mapping from look_up POS to lexicon POS in a questionable way, inspired by my experience with the Italian case.
 The pipeline components now were: ['lemmatizer', 'tok2vec', 'tagger', 'morphologizer', 'parser'].
+
+I also managed to create a NER model. I created it independently, using data from a different source, The SETimes.HR+ corpus, which contains only sentences with named entities; it reached a high performance (about 0.87). But I wasn't able to integrated it with the other models.
+Now, *polm* (Paul O'Leary McCann), from explosion.ai, has given me this tip: "It's fine to train the NER model separately and merge it in to the main pipeline afterwards, we do that for many official models. The way to add a component (with its tok2vec) to another pipeline is called "sourcing components" and is covered here in the docs: https://spacy.io/usage/processing-pipelines/#sourced-components".
+
+[...]
+
+
+** Some references **
+
+- spaCy repo - Adding models for new languages master thread #3056 -
+https://github.com/explosion/spaCy/discussions/3056
 
 [...]
