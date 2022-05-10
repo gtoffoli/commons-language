@@ -195,7 +195,8 @@ AVAILABLE_LANGUAGE_MODELS['nl'] = ('nl_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['pl'] = ('pl_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['pt'] = ('pt_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['lt'] = ('lt_core_news_sm',)
-AVAILABLE_LANGUAGE_MODELS['hr'] = ('hr_core_news_sm',)
+# AVAILABLE_LANGUAGE_MODELS['hr'] = ('hr_core_news_sm',)
+AVAILABLE_LANGUAGE_MODELS['hr'] = ('hr_core_news_sm', 'hr_ner_news_sm',)
 
 import site
 sitepackages_dir = None
