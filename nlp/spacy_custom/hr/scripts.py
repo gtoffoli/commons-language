@@ -1,3 +1,5 @@
+import os
+from collections import defaultdict, OrderedDict
 from random import randint
 
 def settimes_to_iob(in_path):
@@ -106,3 +108,117 @@ def normalize_split_hr500k(in_path):
         evalfile.close()
         testfile.close()
     infile.close()
+
+LEXICON_COLS = {
+    'FORM': 0, # Word form or punctuation symbol
+    'LEMMA': 1, # Lemma or stem of word form
+    'MSD': 3, # Morpho-syntactic description (MSD)
+    'MSD_FEATS': 3, # MSD features.
+    'UPOS': 4, # Universal part-of-speech tag.
+    'MORPHO': 5, # Morphological features.
+    'FREQUENCY': 6, # Any other annotation.
+    'FREQUENCY_PER_MILLION': 7, # Any other annotation.
+}
+
+FREQUENCY_INTERVALS = { # level codes are case-insensitive
+    'NOUN': [1200, 1200, 1200,],
+    'VERB': [500, 500, 500],
+    'ADJ': [500, 500, 500],
+    'ADV': [120, 120, 120],
+}
+CEFR_LEVELS = { # level codes are case-insensitive
+    0: 'a',
+    1: 'b',
+    2: 'c',
+}
+
+LEX_TRAILER = """voc_hr = [
+"""
+LEX_TAIL = """]
+"""
+
+def frequency_to_level(index, intervals):
+    level = 0
+    max_index = 0
+    for interval in intervals:
+        max_index += interval
+        if index > max_index:
+            level += 1
+            if level == len(CEFR_LEVELS):
+                return None
+    return CEFR_LEVELS[level]  
+
+# see class CroatianLemmatizerLookupsBuilder():in nlp/spacy_custom_hr (repository commons-language)
+# from the HR Inflectional Lexicon hrLex v1.3,
+# builds a basic lexicon with noun, verb, adjective and adverb lemmas
+# tagged with a difficulty level (a, b, c) based on their absolute frequency in the source
+class CroatianInflectionalLexicon():
+    
+    def __init__(self, in_path='/_Lingue/Croatian', in_name='hrLex_v1.3', out_path='', out_name='hrLex_v1.3.txt', max_entries=None, min_frequency=None):
+        self.in_path = in_path
+        self.in_name = in_name
+        self.out_path = out_path or in_path or '.'
+        self.out_name = out_name
+        self.max_entries = max_entries or 10000
+        self.min_frequency = min_frequency or 1000
+        self.frequency_lexicon = defaultdict(lambda: defaultdict(int))
+
+    def build_frequency_lexicon(self):
+        """ builds in memory an unsorted frequency lexicon structured as follows:
+            top-level is a Python dict, where each sub-lexicons is keyed with an UPOS;
+            a sub-lexicon is a Python dict where an absolute frequency is keyed by lemma
+            
+        """
+        lexicon_path = os.path.join(self.in_path, self.in_name)
+        n_cols = LEXICON_COLS['FREQUENCY_PER_MILLION'] + 1
+        with open(lexicon_path, encoding='utf8') as infile:
+            line = infile.readline()
+            while line:
+                fields = line.split('\t')
+                if len(fields) >= n_cols:
+                    upos = fields[LEXICON_COLS['UPOS']]
+                    if upos == 'PROPN':
+                        upos = 'NOUN'
+                    lemma = fields[LEXICON_COLS['LEMMA']]
+                    frequency = int(fields[LEXICON_COLS['FREQUENCY']])
+                    self.frequency_lexicon[upos][lemma] += frequency
+                line = infile.readline()
+        infile.close()
+  
+    def write_frequency_lexicon(self):
+        """ sorts by UPOS the top-level dict, whose entries represent sub-lexicons;
+            sorts each sub-lexicon by frequency and truncates it by max_entries and min_frequency;
+            writes a flat file whose entries are sorted by UPOS first and by descending frequency:
+            in the output lines, the fields 'UPOS', 'LEMMA' and FREQUENCY are separated by tabs.
+            """
+        lexicon_path = os.path.join(self.out_path, self.out_name)
+        with open(lexicon_path, 'w', encoding='utf8') as outfile:
+            for upos in sorted(self.frequency_lexicon.keys()):
+                upos_lexicon = self.frequency_lexicon[upos]
+                for lemma, frequency in sorted(upos_lexicon.items(), key=lambda x: x[1], reverse=True)[:self.max_entries]:
+                    if frequency < self.min_frequency:
+                        break
+                    line = "{}\t{}\t{}\n".format(lemma, upos, frequency)
+                    outfile.write(line)
+        outfile.close()
+      
+    def write_basic_vocabulary(self):
+        """ splits the frequency lexicon in 4 sorted sub-lexicons
+            and prints them as a text file containing only comments (#) 
+            and lines of 4 tab-separated fields: lemma, upos, level, frequency """
+        vocabulary_path = os.path.join(self.out_path, self.out_name)
+        with open(vocabulary_path, 'w', encoding='utf8') as outfile:
+            outfile.write(LEX_TRAILER)
+            for tag in ['NOUN', 'VERB', 'ADJ', 'ADV',]:
+                tag_levels = FREQUENCY_INTERVALS[tag]
+                tag_lexicon = self.frequency_lexicon[tag]
+                index = 0
+                for lemma, frequency in sorted(tag_lexicon.items(), key=lambda x: x[1], reverse=True)[:self.max_entries]:
+                    level = frequency_to_level(index, tag_levels)
+                    if not level:
+                        break
+                    index += 1
+                    line = "'{}'\t{}\t{}\t{}\n".format(lemma, tag, level, frequency)
+                    outfile.write(line)
+            outfile.write(LEX_TAIL)
+        outfile.close()
