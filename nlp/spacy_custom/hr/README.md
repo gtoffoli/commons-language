@@ -1,6 +1,9 @@
 # Prototyping the spaCy language model for Croatian
 
-The code is intended for documentation of work done, results and problems met.
+I don't know the Croatian language, but I wanted to extend to Croatian some text evaluation functions, concerning text complexity and readability, already being developed for English, Italian, Greek and Spanish on top of spaCy in an OS collaborative learning platform, inside an Erasmus+ project.
+Since a spaCy language models for Croatian was missing, I've tried to build it myself.
+
+The code in this directory complements this documentation of work done, results and problems met.
 
 ## Language resources used
 
@@ -23,10 +26,161 @@ http://nlp.ffzg.hr/resources/corpora/setimes-hr/
 https://github.com/ffnlp/sethr
 http://www.lrec-conf.org/proceedings/lrec2014/pdf/690_Paper.pdf
 
-## Synthetic report on preliminary work done
+## The current situation
 
-I don't know the Croatian language, but I wanted to extend to Croatian some text evaluation functions, concerning text complexity and readability, already being developed for English, Italian, Greek and Spanish on top of spaCy in an OS collaborative learning platform, inside an Erasmus+ project.
-Since a spaCy language models for Croatian was missing, I've tried to build it myself.
+As of 18 May 2022, I've generated and am using experimentally a Croatian package hr_core_news_sm-0.0.0, entirely based on the _Training corpus hr500k 1.0_ (see reference above).
+To make things simpler, I convinced myself to pursue the most linear solution: using only one training corpus and exploiting the [Quickstart widget](https://spacy.io/usage/training#quickstart). I tried before more complex processes, and will try again, looking for better performance.
+
+### Python and spaCy versions
+
+``` 
+python -m spacy info
+...
+spaCy version    3.3.0
+Location         C:\commons32\lib\site-packages\spacy
+Platform         Windows-10-10.0.19041-SP0
+Python version   3.7.3
+Pipelines        de_core_news_sm (3.3.0), el_core_news_sm (3.3.0), en_core_web_md (3.3.0), en_core_web_sm (3.3.0), es_core_news_md (3.3.0), es_core_news_sm (3.3.0), fr_core_news_sm (3.3.0), hr_core_news_sm (0.0.0), it_core_news_md (3.3.0), it_core_news_sm (3.3.0), lt_core_news_sm (3.3.0), pl_core_news_sm (3.3.0), pt_core_news_sm (3.3.0)
+```
+
+### Quickstart configuration ###
+Input parameters
+- Language: Croatian
+- Components: tagger, morphologizer, trainable lemmatizer, parser, ner
+- Hardware: CPU
+- Optimize for: efficiency
+
+Output: _base_config_all.cfg_
+
+CLI command: `python -m spacy init fill-config base_config_all.cfg config_all.cfg`
+
+Output: _config_all.cfg_
+
+### Preparing the data set ###
+
+Downloaded the file [hr500k.conllu](https://github.com/reldi-data/hr500k/blob/master/hr500k.conllu). 
+
+With the function _normalize_split_hr500k_, from the [scripts](https://github.com/gtoffoli/commons-language/blob/master/nlp/spacy_custom/hr/scripts.py) module in this directory: a) filtered out comments and sentences lacking UD annotation; b) splitted the other content to 3 files:
+- hr500k-train.conllu
+- hr500k-eval.conllu
+- hr500k-test.conllu
+
+- CLI command: `python -m spacy convert hr500k-train.conllu ./ -l hr -n 10` 
+- CLI command: `python -m spacy convert hr500k-eval.conllu ./ -l hr -n 10` 
+- CLI command: `python -m spacy convert hr500k-test.conllu ./ -l hr -n 10` 
+
+### Validating the data set ###
+
+CLI command: `python -m spacy debug data config_all.cfg --paths.train ./hr500k-train.spacy --paths.dev ./hr500k-eval.spacy`
+
+``` 
+←[1m
+============================ Data file validation ============================←[0m
+✔ Pipeline can be initialized with data
+✔ Corpus is loadable
+←[1m
+=============================== Training stats ===============================←[0m
+Language: hr
+Training pipeline: tok2vec, tagger, morphologizer, trainable_lemmatizer, parser,
+ner
+448 training docs
+298 evaluation docs
+✔ No overlap between training and evaluation data
+⚠ Low number of examples to train a new pipeline (448)
+←[1m
+============================== Vocab & Vectors ==============================←[0m
+ℹ 98374 total word(s) in the data (24547 unique)
+ℹ No word vectors present in the package
+←[1m
+========================== Named Entity Recognition ==========================←[0m
+ℹ 5 label(s)
+0 missing value(s) (tokens with '-' label)
+✔ Good amount of examples for all labels
+✔ Examples without occurrences available for all labels
+✔ No entities consisting of or starting/ending with whitespace
+✔ No entities crossing sentence boundaries
+←[1m
+=========================== Part-of-speech Tagging ===========================←[0m
+ℹ 623 label(s) in train data
+←[1m
+========================= Morphologizer (POS+Morph) =========================←[0m
+ℹ 766 label(s) in train data
+←[1m
+============================= Dependency Parsing =============================←[0m
+ℹ Found 4467 sentence(s) with an average length of 22.0 words.
+ℹ Found 235 nonprojective train sentence(s)
+ℹ 37 label(s) in train data
+ℹ 122 label(s) in projectivized train data
+⚠ Low number of examples for label 'advmod:emph' (17)
+⚠ Low number of examples for label 'vocative' (10)
+⚠ Low number of examples for label 'list' (13)
+⚠ Low number of examples for label 'dislocated' (3)
+⚠ Low number of examples for label 'dep' (4)
+⚠ Low number of examples for label 'compound' (7)
+⚠ Low number of examples for 78 label(s) in the projectivized dependency trees
+used for training. You may want to projectivize labels such as punct before
+training in order to improve parser performance.
+←[1m
+================================== Summary ==================================←[0m
+✔ 7 checks passed
+⚠ 11 warnings
+``` 
+
+### Training the model ###
+
+CLI command: `python -m spacy train config_all.cfg --output ./output_all --paths.train ./hr500k-train.spacy --paths.dev ./hr500k-eval.spacy`
+
+### Evaluating the model ###
+
+CLI command: `python -m spacy evaluate ./output_all/model-best ./hr500k-test.spacy --output evaluate_output_all.json`
+
+Herebelow is an excerpt of the evaluation report:
+
+```
+{
+  "token_acc":1.0,
+  "token_p":0.972660912,
+  "token_r":0.9885751361,
+  "token_f":0.980553457,
+  "tag_acc":0.7779170481,
+  "pos_acc":0.9007764829,
+  "morph_acc":0.7836387453,
+  "morph_micro_p":0.8394250996,
+  "morph_micro_r":0.8304774984,
+  "morph_micro_f":0.8349273277,
+...
+  "lemma_acc":0.8382114276,
+  "sents_p":0.908285895,
+  "sents_r":0.9169859515,
+  "sents_f":0.9126151891,
+  "dep_uas":0.7334517921,
+  "dep_las":0.6538910661,
+...
+  "ents_p":0.6797853309,
+  "ents_r":0.6707855252,
+  "ents_f":0.675255442,
+  "speed":7014.0236866046
+}
+``` 
+
+### Generating and installing the language package ###
+
+CLI command: `python -m spacy package ./output_all/model-best/ ./ --name core_news_sm --version 0.0.0`
+
+CLI command: `pip install hr_core_news_sm-0.0.0`
+
+## Some references
+
+- spaCy doc - Training Pipelines & Models -
+https://spacy.io/usage/training
+
+- spaCy doc - Sourcing components from existing pipelines -
+https://spacy.io/usage/processing-pipelines#sourced-components
+
+- spaCy repo - Adding models for new languages master thread #3056 -
+https://github.com/explosion/spaCy/discussions/3056
+
+## Report on previous work
 
 First, I've generated a few components with spaCy 3.0.5 (now I'm working with last version), starting from the *UD_Croatian-SET*.
 I have essentially used the basic configuration produced by the *Quickstart Widget* at https://spacy.io/usage/training, and met no problems.
@@ -268,16 +422,5 @@ training in order to improve parser performance.
 #### Integrating the Lemmatizer in the core language model
 
 [...]
-
-## Some references
-
-- spaCy doc - Training Pipelines & Models -
-https://spacy.io/usage/training
-
-- spaCy doc - Sourcing components from existing pipelines -
-https://spacy.io/usage/processing-pipelines#sourced-components
-
-- spaCy repo - Adding models for new languages master thread #3056 -
-https://github.com/explosion/spaCy/discussions/3056
 
 [...]
