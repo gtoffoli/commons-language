@@ -52,10 +52,10 @@ CONLLU_DICT = {
     'IOB': 9, # annotation for NER.
 }
 
-def normalize_split_hr500k(in_path):
+def normalize_split_hr500k(in_path, per_ten=[8,1,1]): # previously default splitting was [3,2,1]
     """ From the conll format of the hr500k.conllu treebank,
         remove the comment lines and keep only sentences with UD annotation, 
-        split them between train, eval and test files in the 3:2:1 ratio,
+        split them between train, eval and test files in the n1:n2:n1 ratio,
         keep only IOB data from MISC field
         see: https://github.com/reldi-data/hr500k/blob/master/hr500k.conllu """
     file_ext = '.'+in_path.split('.')[-1]
@@ -72,12 +72,16 @@ def normalize_split_hr500k(in_path):
             with open(eval_path, 'w', encoding='utf8') as evalfile:
                 with open(test_path, 'w', encoding='utf8') as testfile:
                     if not choices:
-                        choices = [trainfile, trainfile, trainfile, evalfile, evalfile, testfile]
+                        if per_ten:
+                            for i in range(3):
+                                choices.extend([[trainfile, evalfile, testfile][i] for j in range(per_ten[i])])
+                        else: # [3,2,1
+                            choices = [trainfile, trainfile, trainfile, evalfile, evalfile, testfile]
                     line = infile.readline()
                     while(line):
                         if line.startswith('#'):
                             if line.startswith('# sent_id'):
-                                outfile = choices[randint(0, 5)]
+                                outfile = choices[randint(0, len(choices)-1)]
                             elif not line.startswith('# text'):
                                 pass
                             line = infile.readline()

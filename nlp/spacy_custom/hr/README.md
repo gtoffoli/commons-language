@@ -65,6 +65,8 @@ With the function _normalize_split_hr500k_, from the [scripts](https://github.co
 - hr500k-eval.conllu
 - hr500k-test.conllu
 
+A first time I randomly splitted the corpus in 3 subsets of sizes proportional to 3, 2, and 1 respectively. A second time we repeated the preparation, training and evaluation cycle with subsets of size proportional to 8, 1 and 1, like those of the UD Data Set. The results were significantly better (about 2 or 3 % improvement of each score). Thus, we kept the last ones.
+
 - CLI command: `python -m spacy convert hr500k-train.conllu ./ -l hr -n 10` 
 - CLI command: `python -m spacy convert hr500k-eval.conllu ./ -l hr -n 10` 
 - CLI command: `python -m spacy convert hr500k-test.conllu ./ -l hr -n 10` 
@@ -83,13 +85,13 @@ CLI command: `python -m spacy debug data config_all.cfg --paths.train ./hr500k-t
 Language: hr
 Training pipeline: tok2vec, tagger, morphologizer, trainable_lemmatizer, parser,
 ner
-448 training docs
-298 evaluation docs
+719 training docs
+94 evaluation docs
 ✔ No overlap between training and evaluation data
-⚠ Low number of examples to train a new pipeline (448)
+⚠ Low number of examples to train a new pipeline (719)
 ←[1m
 ============================== Vocab & Vectors ==============================←[0m
-ℹ 98374 total word(s) in the data (24547 unique)
+ℹ 159088 total word(s) in the data (33429 unique)
 ℹ No word vectors present in the package
 ←[1m
 ========================== Named Entity Recognition ==========================←[0m
@@ -101,34 +103,62 @@ ner
 ✔ No entities crossing sentence boundaries
 ←[1m
 =========================== Part-of-speech Tagging ===========================←[0m
-ℹ 623 label(s) in train data
+ℹ 655 label(s) in train data
 ←[1m
 ========================= Morphologizer (POS+Morph) =========================←[0m
-ℹ 766 label(s) in train data
+ℹ 829 label(s) in train data
 ←[1m
 ============================= Dependency Parsing =============================←[0m
-ℹ Found 4467 sentence(s) with an average length of 22.0 words.
-ℹ Found 235 nonprojective train sentence(s)
+ℹ Found 7180 sentence(s) with an average length of 22.2 words.
+ℹ Found 388 nonprojective train sentence(s)
 ℹ 37 label(s) in train data
-ℹ 122 label(s) in projectivized train data
-⚠ Low number of examples for label 'advmod:emph' (17)
-⚠ Low number of examples for label 'vocative' (10)
-⚠ Low number of examples for label 'list' (13)
+ℹ 139 label(s) in projectivized train data
+⚠ Low number of examples for label 'vocative' (15)
+⚠ Low number of examples for label 'list' (14)
 ⚠ Low number of examples for label 'dislocated' (3)
-⚠ Low number of examples for label 'dep' (4)
 ⚠ Low number of examples for label 'compound' (7)
-⚠ Low number of examples for 78 label(s) in the projectivized dependency trees
+⚠ Low number of examples for label 'dep' (6)
+⚠ Low number of examples for 93 label(s) in the projectivized dependency trees
 used for training. You may want to projectivize labels such as punct before
 training in order to improve parser performance.
 ←[1m
 ================================== Summary ==================================←[0m
 ✔ 7 checks passed
-⚠ 11 warnings
+⚠ 10 warnings
 ``` 
 
 ### Training the model ###
 
 CLI command: `python -m spacy train config_all.cfg --output ./output_all --paths.train ./hr500k-train.spacy --paths.dev ./hr500k-eval.spacy`
+
+```
+ℹ Saving to output directory: output_all
+ℹ Using CPU
+←[1m
+=========================== Initializing pipeline ===========================←[0m
+[2022-05-18 16:22:47,219] [INFO] Set up nlp object from config
+[2022-05-18 16:22:47,239] [INFO] Pipeline: ['tok2vec', 'tagger', 'morphologizer', 'trainable_lemmatizer', 'parser', 'ner']
+[2022-05-18 16:22:47,250] [INFO] Created vocabulary
+[2022-05-18 16:22:47,251] [INFO] Finished initializing nlp object
+[2022-05-18 16:23:12,463] [INFO] Initialized pipeline components: ['tok2vec', 'tagger', 'morphologizer', 'trainable_lemmatizer', 'parser', 'ner']
+✔ Initialized pipeline
+←[1m
+============================= Training pipeline =============================←[0m
+ℹ Pipeline: ['tok2vec', 'tagger', 'morphologizer', 'trainable_lemmatizer',
+'parser', 'ner']
+ℹ Initial learn rate: 0.001
+E    #       LOSS TOK2VEC  LOSS TAGGER  LOSS MORPH...  LOSS TRAIN...  LOSS PARSER  LOSS NER  TAG_ACC  POS_ACC  MORPH_ACC  LEMMA_ACC  DEP_UAS  DEP_LAS  SENTS_F  ENTS_F  ENTS_P  ENTS_R  SCORE
+---  ------  ------------  -----------  -------------  -------------  -----------  --------  -------  -------  ---------  ---------  -------  -------  -------  ------  ------  ------  ------
+  0       0          0.00       255.61         255.69         255.74       486.93    131.32    15.60    34.02      16.43      48.66    21.19     6.00     0.25    0.17    0.12    0.33    0.21
+  0     200       7714.35     32548.36       32676.56       26883.63     46047.76   6095.61    48.67    73.24      49.07      59.69    45.40    33.61    26.94   42.36   44.66   40.28    0.50
+  0     400      10634.01     25817.66       26018.56       21279.01     38589.62   2954.02    56.68    80.45      57.04      64.82    54.99    43.39    76.28   50.94   51.48   50.42    0.58
+...
+ 49   16800      93039.43      7949.02        7863.10        8461.55     38138.66   2698.88    81.39    92.12      81.89      86.01    76.57    69.78    93.25   70.37   70.32   70.43    0.80
+ 50   17000      92610.86      7725.24        7605.42        8234.97     36838.26   2809.95    81.48    92.20      82.00      85.89    76.69    69.69    92.59   71.72   71.61   71.84    0.80
+ 51   17200      94539.13      7702.00        7625.98        8444.89     36937.43   2840.35    81.47    92.03      82.03      86.10    77.04    70.04    92.88   71.08   71.65   70.51    0.80
+✔ Saved pipeline to output directory
+output_all\model-last
+```
 
 ### Evaluating the model ###
 
@@ -139,27 +169,28 @@ Herebelow is an excerpt of the evaluation report:
 ```
 {
   "token_acc":1.0,
-  "token_p":0.972660912,
-  "token_r":0.9885751361,
-  "token_f":0.980553457,
-  "tag_acc":0.7779170481,
-  "pos_acc":0.9007764829,
-  "morph_acc":0.7836387453,
-  "morph_micro_p":0.8394250996,
-  "morph_micro_r":0.8304774984,
-  "morph_micro_f":0.8349273277,
+  "token_p":0.9770501533,
+  "token_r":0.9903740098,
+  "token_f":0.9836669654,
+  "tag_acc":0.8108067505,
+  "pos_acc":0.9213539448,
+  "morph_acc":0.8172576122,
+  "morph_micro_p":0.8682765777,
+  "morph_micro_r":0.8599697292,
+  "morph_micro_f":0.86410319,
+  ...
+  "lemma_acc":0.8634100189,
+  "sents_p":0.9472477064,
+  "sents_r":0.9280898876,
+  "sents_f":0.9375709421,
+  "dep_uas":0.7767658945,
+  "dep_las":0.7054706836,
 ...
-  "lemma_acc":0.8382114276,
-  "sents_p":0.908285895,
-  "sents_r":0.9169859515,
-  "sents_f":0.9126151891,
-  "dep_uas":0.7334517921,
-  "dep_las":0.6538910661,
+  "ents_p":0.7111299915,
+  "ents_r":0.6934548467,
+  "ents_f":0.7021812081,
 ...
-  "ents_p":0.6797853309,
-  "ents_r":0.6707855252,
-  "ents_f":0.675255442,
-  "speed":7014.0236866046
+  "speed":6997.4082455413
 }
 ``` 
 
