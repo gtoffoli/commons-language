@@ -16,6 +16,7 @@ import pandas as pd
 import operator
 import re
 from tmtoolkit.preprocess._docfuncs import _init_doc
+from langid.langid import LanguageIdentifier, model
 
 def text_to_list(text):
     if not text:
@@ -25,6 +26,12 @@ def text_to_list(text):
     return [item for item in list if len(item)]
 
 fasttext_path = '/opt/demo-app/fastText/fasttext'
+
+def text_to_language(text):
+    identifier = LanguageIdentifier.from_modelstring(model, norm_probs=True)
+    language, confidence = identifier.classify(text)
+    print('language_detection: ', language, confidence)
+    return language, confidence
 
 # uncomment for debugging purporses
 import logging
@@ -115,7 +122,8 @@ def doc_to_json(doc, language):
 
 # as a side-effect, extends the language model
 def text_to_doc(text, return_json=False, doc_key=None):
-    language = settings.LANG_ID.classify(text)[0]
+    # language = settings.LANG_ID.classify(text)[0]
+    language, confidence = text_to_language(text)
     model = settings.LANGUAGE_MODELS[language]
     customize_model(model) # 191111 GT
     doc = model(text)
@@ -406,7 +414,8 @@ def get_sorted_keywords(language=None, doc=None, docs=[], text=None):
     return keywords, lemma_forms
 
 def visualize_text(text):
-    language = settings.LANG_ID.classify(text)[0]
+    # language = settings.LANG_ID.classify(text)[0]
+    language, confidence = text_to_language(text)
     lang = settings.LANGUAGE_MODELS[language]
     doc = lang(text)
     return displacy.parse_deps(doc)
