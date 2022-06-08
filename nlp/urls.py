@@ -1,9 +1,6 @@
-# from django.conf.urls.static import static
-# from django.conf import settings
-# from django.conf.urls import url, include
-# from django.contrib.sitemaps.views import sitemap
-# from django.urls import path
-from django.conf.urls import url
+# see: https://stackoverflow.com/questions/70319606/importerror-cannot-import-name-url-from-django-conf-urls-after-upgrading-to#:~:text=The%20easiest%20fix%20is%20to,and%20replace%20url%20with%20re_path%20.&text=Alternatively%2C%20you%20could%20switch%20to,if%20you%20switch%20to%20path.
+# from django.conf.urls import url
+from django.conf.urls import re_path as url
 from . import views
 
 
