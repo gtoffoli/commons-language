@@ -11,7 +11,7 @@ import spacy
 from spacy import displacy
 from spacy.tokens import Doc, DocBin
 from spacy.attrs import ORTH
-from gensim.summarization import summarize
+# from gensim.summarization import summarize
 import pandas as pd
 import operator
 import re
@@ -185,7 +185,9 @@ def analyze_text(text, language=None, doc=None):
             pass
 
     try:
-        ret['summary'] = summarize(text)
+        # ret['summary'] = summarize(text)
+        # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
+        ret['summary'] = ''
     except ValueError:  # why does it break in short sentences?
         ret['summary'] = ''
 
@@ -315,7 +317,9 @@ def analyze_doc(doc, keys=[], return_text=True):
 
     if 'summary' in keys:
         try:
-            ret['summary'] = summarize(text)
+            # ret['summary'] = summarize(text)
+            # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
+            ret['summary'] = ''
         except ValueError:  # why does it break in short sentences?
             ret['summary'] = ''
 
