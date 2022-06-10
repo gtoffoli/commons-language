@@ -1,7 +1,9 @@
 import json
 import spacy
+import importlib
+
 from spacy.tokens import Doc
-from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
+# from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
@@ -291,6 +293,13 @@ def word_contexts(request):
     MIN_KEYWORDS = 10
     MIN_CONTEXTS = 3
     CONTEXT_SIZE = 5
+    preprocess_spec = importlib.util.find_spec("tmtoolkit.preprocess")
+    if preprocess_spec is not None:
+        from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
+        TMT = 'old'
+    else:
+        from tmtoolkit.corpus import Document as tm_Document, Corpus as tm_Corpus, kwic
+        TMT = "new"
     text = data.get('text', None)
     if text is not None:
         ret = analyze_text(text)
@@ -307,7 +316,8 @@ def word_contexts(request):
         i = 0
         for doc in list(docbin.get_docs(model.vocab)):
             if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
-                _init_doc(doc)
+                if TMT == 'old':
+                    _init_doc(doc)
                 i += 1
                 doc._.label = 'doc_{}'.format(i)
                 docs.append(doc)
@@ -316,10 +326,20 @@ def word_contexts(request):
     keywords_in_context = []
     j = 0
     for lemma, frequency in keywords:
-        contexts_dict = \
-            kwic(docs, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
-            glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
-            glue=None, highlight_keyword=None)
+        if TMT == 'old':
+            contexts_dict = \
+                kwic(docs, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+                glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
+                glue=None, highlight_keyword=None)
+        else: # TMT == 'new'
+            contexts_dict = {}
+            doc_dict = {}
+            for doc in docs:
+                doc_dict[doc._.label] = doc.text
+            corpus = tm_Corpus(doc_dict, spacy_instance=settings.LANGUAGE_MODELS[language])
+            contexts_dict = \
+                kwic(corpus, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+                glob_method='match', inverse=False,  as_tables=False, only_non_empty=False, glue=None)
         contexts = []
         for context_item in contexts_dict.items():
             for window in context_item[1]:

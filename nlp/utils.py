@@ -15,8 +15,12 @@ from spacy.attrs import ORTH
 import pandas as pd
 import operator
 import re
-from tmtoolkit.preprocess._docfuncs import _init_doc
 from langid.langid import LanguageIdentifier, model
+try:
+    from tmtoolkit.preprocess._docfuncs import _init_doc
+except:
+    def _init_doc(doc):
+        return doc
 
 def text_to_list(text):
     if not text:
@@ -153,7 +157,6 @@ def text_to_doc(text, return_json=False, doc_key=None):
 def get_doc_attributes(doc):
     return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH))}
 
-# def analyze_text(text):
 def analyze_text(text, language=None, doc=None):
     ret = {}
     # language identification
@@ -163,7 +166,8 @@ def analyze_text(text, language=None, doc=None):
         doc = text_to_doc(text)
         language = doc.lang_
         ret['doc'] = doc
-    ret['language'] = settings.LANGUAGE_MAPPING[language]
+    # ret['language'] = settings.LANGUAGE_MAPPING[language]
+    ret['language'] = language
     # analyzed text containing lemmas, pos and dep. Entities are coloured
     analyzed_text = ''
     for token in doc:
@@ -185,10 +189,13 @@ def analyze_text(text, language=None, doc=None):
             pass
 
     try:
-        # ret['summary'] = summarize(text)
         # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
-        ret['summary'] = ''
-    except ValueError:  # why does it break in short sentences?
+        from gensim.summarization import summarize
+        try:
+            ret['summary'] = summarize(text)
+        except ValueError:  # why does it break in short sentences?
+            ret['summary'] = ''
+    except:
         ret['summary'] = ''
 
     # top 10 most frequent keywords, based on tokens lemmatization

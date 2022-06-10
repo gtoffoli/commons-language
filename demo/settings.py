@@ -183,7 +183,8 @@ LANGUAGE_MAPPING = {
 # load any spaCy models that are installed
 # this takes some time to load so doing it here and hopefully this improves performance
 
-SUPPORTED_LANGUAGES = ['da', 'de', 'el', 'en', 'es', 'fr', 'hr', 'it', 'lt', 'nl', 'pt',]
+# SUPPORTED_LANGUAGES = ['da', 'de', 'el', 'en', 'es', 'fr', 'hr', 'it', 'lt', 'nl', 'pl', 'pt',]
+SUPPORTED_LANGUAGES = ['da', 'el', 'en', 'es', 'hr', 'it', 'lt',]
 
 AVAILABLE_LANGUAGE_MODELS = {}
 AVAILABLE_LANGUAGE_MODELS['da'] = ('da_core_news_md','da_core_news_sm',)
