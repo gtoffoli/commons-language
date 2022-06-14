@@ -1,4 +1,5 @@
 import os
+import math
 from pathlib import Path
 import time
 import glob
@@ -61,6 +62,7 @@ POS_MAPPING = {
     'ADJ': 'adjectives',
 }
 
+SEMANTIC_POS_LIST = ['VERB', 'ADJ', 'NOUN', 'ADV', 'PROPN']
 
 def load_greek_lexicon():
     indexes = {}
@@ -154,6 +156,42 @@ def text_to_doc(text, return_json=False, doc_key=None):
     else:
         return doc
 
+# see https://github.com/kamal2230/text-summarization/blob/master/Summarisation_using_spaCy.ipynb
+def spacy_summarize(doc, sorted_frequencies, max_frequency, limit=None):
+    if not sorted_frequencies:
+        return ''
+    sents = list(doc.sents)
+    if len(sents) <= 2:
+        summarized_sentences = sents
+    else:
+        limit = limit or int(math.log(len(sents), 1.8))
+        normal_frequencies = {}
+        for lemma, frequency in sorted_frequencies:
+            normal_frequencies[lemma] = frequency / max_frequency
+        sent_strength = defaultdict(float)
+        for i, sent in enumerate(sents):
+            sent_length = 0
+            proper_nouns = []
+            for token in sent:
+                lemma = token.lemma_
+                if lemma in normal_frequencies:
+                    # count only once proper nouns
+                    if token.pos_ == 'PROPN':
+                        if lemma in proper_nouns:
+                            continue
+                        else:
+                            proper_nouns.append(lemma)
+                            if sent_length == 0: # proper noun at sentence start counts double
+                                sent_strength[i] += normal_frequencies[lemma]
+                    sent_strength[i] += normal_frequencies[lemma]
+                    sent_length += 1
+            long_sentence_corrector = math.log(sent_length, 1.2)
+            sent_strength[i] = sent_strength[i]/long_sentence_corrector
+        sent_keys = [k for k, v in sorted(sent_strength.items(), key=lambda item: item[1], reverse=True)][:limit]
+        summarized_sentences = [sent for i, sent in enumerate(sents) if i in sent_keys]
+    summary = ' '.join([sent.text for sent in summarized_sentences])
+    return summary
+
 def get_doc_attributes(doc):
     return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH))}
 
@@ -188,16 +226,6 @@ def analyze_text(text, language=None, doc=None):
         except Exception:
             pass
 
-    try:
-        # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
-        from gensim.summarization import summarize
-        try:
-            ret['summary'] = summarize(text)
-        except ValueError:  # why does it break in short sentences?
-            ret['summary'] = ''
-    except:
-        ret['summary'] = ''
-
     # top 10 most frequent keywords, based on tokens lemmatization
     frequency = defaultdict(int)
     lexical_attrs = {
@@ -212,11 +240,24 @@ def analyze_text(text, language=None, doc=None):
             lexical_attrs['emails'].append(token.text)
         if (token.like_num or token.is_digit):
             lexical_attrs['nums'].append(token.text)
-        if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
+        # if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
+        if not token.is_stop and token.pos_ in SEMANTIC_POS_LIST:
             frequency[token.lemma_] += 1
+    """
     keywords = [keyword for keyword, frequency in sorted(
         frequency.items(), key=lambda k_v: k_v[1], reverse=True)][:10]
+    """
+    sorted_frequencies = sorted(frequency.items(), key=lambda k_v: k_v[1], reverse=True)
+    keywords = [keyword for keyword, frequency in sorted_frequencies][:10]
+    max_frequency = len(sorted_frequencies) and sorted_frequencies[0][1]
     ret['keywords'] = ', '.join(keywords)
+
+    try:
+        # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
+        from gensim.summarization import summarize
+        ret['summary'] = summarize(text)
+    except:
+        ret['summary'] = spacy_summarize(doc, sorted_frequencies, max_frequency)
 
     # Named Entities
     entities = {label: [] for key, label in ENTITIES_MAPPING.items()}
@@ -322,6 +363,7 @@ def analyze_doc(doc, keys=[], return_text=True):
         except Exception:
             pass
 
+    """
     if 'summary' in keys:
         try:
             # ret['summary'] = summarize(text)
@@ -329,6 +371,15 @@ def analyze_doc(doc, keys=[], return_text=True):
             ret['summary'] = ''
         except ValueError:  # why does it break in short sentences?
             ret['summary'] = ''
+    """
+
+    if 'summary' in keys:
+        try:
+            # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
+            from gensim.summarization import summarize
+            ret['summary'] = summarize(text)
+        except:
+            ret['summary'] = spacy_summarize(doc)
 
     if 'keywords' in keys:
         # top 10 most frequent keywords, based on tokens lemmatization
@@ -346,7 +397,8 @@ def analyze_doc(doc, keys=[], return_text=True):
                 lexical_attrs['emails'].append(token.text)
             if (token.like_num or token.is_digit):
                 lexical_attrs['nums'].append(token.text)
-            if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
+            # if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
+            if not token.is_stop and token.pos_ in SEMANTIC_POS_LIST:
                 lemma = token.lemma_
                 frequency[lemma] += 1
                 if 'lemma_forms' in keys:
