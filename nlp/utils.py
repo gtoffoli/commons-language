@@ -185,8 +185,9 @@ def spacy_summarize(doc, sorted_frequencies, max_frequency, limit=None):
                                 sent_strength[i] += normal_frequencies[lemma]
                     sent_strength[i] += normal_frequencies[lemma]
                     sent_length += 1
-            long_sentence_corrector = math.log(sent_length, 1.2)
-            sent_strength[i] = sent_strength[i]/long_sentence_corrector
+            if sent_length > 1:
+                long_sentence_corrector = math.log(sent_length, 1.4)
+                sent_strength[i] = sent_strength[i]/long_sentence_corrector
         sent_keys = [k for k, v in sorted(sent_strength.items(), key=lambda item: item[1], reverse=True)][:limit]
         summarized_sentences = [sent for i, sent in enumerate(sents) if i in sent_keys]
     summary = ' '.join([sent.text for sent in summarized_sentences])
