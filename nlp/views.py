@@ -8,8 +8,8 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
-from .utils import analyze_text, visualize_text
-from .utils import text_to_list, text_to_doc, get_doc_attributes, compare_docs
+from .utils import analyze_doc, visualize_text # , analyze_text
+from .utils import text_to_list, text_to_doc #, get_doc_attributes, compare_docs
 from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
 from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
 from .utils import get_docs, doc_to_json
@@ -93,7 +93,8 @@ def analyze(request):
     if request.method == 'POST':
         doc = docs(request, return_json=False)[0]
         language = doc.lang_
-        ret = analyze_text('', doc=doc, language=language)
+        # ret = analyze_text('', doc=doc, language=language)
+        ret = analyze_doc(text='', doc=doc)
         ret['doc'] = None
         ret.update(doc_to_json(doc, language))
         return JsonResponse(ret)
@@ -302,7 +303,8 @@ def word_contexts(request):
         TMT = "new"
     text = data.get('text', None)
     if text is not None:
-        ret = analyze_text(text)
+        # ret = analyze_text(text)
+        ret = analyze_doc(text=text)
         language = ret['language']
         docs = [ret['doc']]
     else:

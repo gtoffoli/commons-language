@@ -136,21 +136,6 @@ def text_to_doc(text, return_json=False, doc_key=None):
     _init_doc(doc)
     doc.user_data.update({'doc_key': doc_key})
     if return_json:
-        """
-        json = doc.to_json()
-        json['language'] = language
-        start_dict = {}
-        for token_data in json['tokens']:
-            start_dict[token_data['start']] = token_data
-        for token in doc:
-            token_data = start_dict[token.idx]
-            token_data['stop'] = token.is_stop
-            token_data['lemma'] = token.lemma_
-            token_data['oov'] = token.is_oov
-            token_data['num'] = token.like_num
-            token_data['email'] = token.like_email
-            token_data['url'] = token.like_url
-        """
         json = doc_to_json(doc, language)
         return json
     else:
@@ -196,6 +181,7 @@ def spacy_summarize(doc, sorted_frequencies, max_frequency, limit=None):
 def get_doc_attributes(doc):
     return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH))}
 
+"""
 def analyze_text(text, language=None, doc=None):
     ret = {}
     # language identification
@@ -244,10 +230,6 @@ def analyze_text(text, language=None, doc=None):
         # if not token.is_stop and token.pos_ in ['VERB', 'ADJ', 'NOUN', 'ADV', 'AUX', 'PROPN']:
         if not token.is_stop and token.pos_ in SEMANTIC_POS_LIST:
             frequency[token.lemma_] += 1
-    """
-    keywords = [keyword for keyword, frequency in sorted(
-        frequency.items(), key=lambda k_v: k_v[1], reverse=True)][:10]
-    """
     sorted_frequencies = sorted(frequency.items(), key=lambda k_v: k_v[1], reverse=True)
     keywords = [keyword for keyword, frequency in sorted_frequencies][:10]
     max_frequency = len(sorted_frequencies) and sorted_frequencies[0][1]
@@ -294,6 +276,7 @@ def analyze_text(text, language=None, doc=None):
     except:
         ret['noun_chunks'] = []
     return ret
+"""
 
 def predict_category(text, language):
     "Loads FastText models and predicts category"
@@ -335,16 +318,28 @@ def merge_docs(language=None, docs=[], docbin=None, text=None):
         _init_doc(doc)
     return 0, doc
 
-def analyze_doc(doc, keys=[], return_text=True):
+# def analyze_doc(doc, keys=[], return_text=True):
+def analyze_doc(doc=None, text='', keys=[], return_text=True):
 
+    """
     language = doc.lang_
     ret = {'language': language}
-
     text = doc.text
-    if 'text' in keys:
+    """
+
+    assert doc or text
+    if doc:
+        text = doc.text
+    else:
+        doc = text_to_doc(text)
+    language = doc.lang_
+
+    ret = {'doc': doc, 'language': language}
+
+    if not keys or 'text' in keys:
         ret['text'] = text
 
-    if 'analyzed_text' in keys:
+    if not keys or 'analyzed_text' in keys:
         analyzed_text = ''
         for token in doc:
             if token.ent_type_:
@@ -357,32 +352,14 @@ def analyze_doc(doc, keys=[], return_text=True):
         ret['analyzed_text'] = analyzed_text
 
     # Text category. Only valid for Greek text for now
-    if 'sentiment' in keys and language == 'el':
+    if (not keys or 'sentiment' in keys) and language == 'el':
         ret.update(sentiment_analysis(doc))
         try:
             ret['category'] = predict_category(text, language)
         except Exception:
             pass
 
-    """
-    if 'summary' in keys:
-        try:
-            # ret['summary'] = summarize(text)
-            # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
-            ret['summary'] = ''
-        except ValueError:  # why does it break in short sentences?
-            ret['summary'] = ''
-    """
-
-    if 'summary' in keys:
-        try:
-            # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
-            from gensim.summarization import summarize
-            ret['summary'] = summarize(text)
-        except:
-            ret['summary'] = spacy_summarize(doc)
-
-    if 'keywords' in keys:
+    if not keys or 'keywords' in keys:
         # top 10 most frequent keywords, based on tokens lemmatization
         frequency = defaultdict(int)
         lemma_forms = defaultdict(set)
@@ -413,7 +390,19 @@ def analyze_doc(doc, keys=[], return_text=True):
             if 'lemma_forms' in keys:
                 ret['lemma_forms'] = lemma_forms
 
-    if 'entities' in keys:
+        sorted_frequencies = sorted(frequency.items(), key=lambda k_v: k_v[1], reverse=True)
+        keywords = [keyword for keyword, frequency in sorted_frequencies][:10]
+        max_frequency = len(sorted_frequencies) and sorted_frequencies[0][1]
+
+    if not keys or 'summary' in keys:
+        try:
+            # see: https://stackoverflow.com/questions/69064948/how-to-import-gensim-summarize
+            from gensim.summarization import summarize
+            ret['summary'] = summarize(text)
+        except:
+            ret['summary'] = spacy_summarize(doc, sorted_frequencies, max_frequency)
+
+    if not keys or 'entities' in keys:
         # Named Entities
         entities = {label: [] for key, label in ENTITIES_MAPPING.items()}
         for ent in doc.ents:
@@ -424,19 +413,19 @@ def analyze_doc(doc, keys=[], return_text=True):
                     entities[mapped_entity].append(ent.text)
         ret['named_entities'] = entities
 
-    if 'sentences' in keys:
+    if not keys or 'sentences' in keys:
         # Sentences splitting
         ret['sentences'] = [sentence.text for sentence in doc.sents]
 
-    if 'entities' in keys:
+    if not keys or 'entities' in keys:
         # Lemmatized sentences splitting
         ret['lemmatized_sentences'] = [sentence.lemma_ for sentence in doc.sents]
 
-    if 'tokenized' in keys:
+    if not keys or 'tokenized' in keys:
         # Text tokenization
         ret['text_tokenized'] = [token.text for token in doc]
 
-    if 'pos' in keys:
+    if not keys or 'pos' in keys:
         # Parts of Speech
         part_of_speech = {label: [] for key, label in POS_MAPPING.items()}
     
@@ -446,10 +435,10 @@ def analyze_doc(doc, keys=[], return_text=True):
                 part_of_speech[mapped_token].append(token.text)
         ret['part_of_speech'] = part_of_speech
 
-    if 'lexical_attrs' in keys:
+    if not keys or 'lexical_attrs' in keys:
         ret['lexical_attrs'] = lexical_attrs
 
-    if 'noun_chunks' in keys:
+    if not keys or 'noun_chunks' in keys:
         try:
             ret['noun_chunks'] = [re.sub(r'[^\w\s]', '', x.text) for x in doc.noun_chunks]
         except:
