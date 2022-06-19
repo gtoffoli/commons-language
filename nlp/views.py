@@ -91,7 +91,7 @@ def configuration(request):
 def analyze(request):
     'API text analyze view'
     if request.method == 'POST':
-        doc = docs(request, return_json=False)[0]
+        doc = list(docs(request, return_json=False))[0]
         language = doc.lang_
         # ret = analyze_text('', doc=doc, language=language)
         ret = analyze_doc(text='', doc=doc)
@@ -112,7 +112,7 @@ def docs(request, return_json=True):
         text = data.get('text', '')
         file_key = data.get('file_key', '')
         obj_type = data.get('obj_type', '')
-        obj_id = data.get('obj_id', '')
+        obj_id = int(data.get('obj_id', 0))
         if file_key:
             language = language_from_file_key(file_key)
             file_key, docbin = get_docbin(file_key=file_key)
