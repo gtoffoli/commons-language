@@ -89,9 +89,17 @@ def configuration(request):
 
 @csrf_exempt
 def analyze(request):
-    'API text analyze view'
+    """ The HTTP API view analyze() returns as json objects one or more text documents
+        processed by a spaCy pipeline, whose Doc structure is enriched with custom post-processing.
+        Input parameters in the request body: file_key, obj_type, obj_id, concatenate;
+        they are all optional but the first three cannot be all missing;
+        obj_type and obj_id make sense only in pairs;
+        concatenate (False/True) makes sense if file_key identify a ultiple-Soc spaCy Docbin.
+        Output: a json object in the body of the POST response.
+    """
     if request.method == 'POST':
-        doc = list(docs(request, return_json=False))[0]
+        # doc = list(docs(request, return_json=False))[0]
+        doc = docs(request, return_json=False)
         language = doc.lang_
         # ret = analyze_text('', doc=doc, language=language)
         ret = analyze_doc(text='', doc=doc)
@@ -104,29 +112,49 @@ def analyze(request):
 
 @csrf_exempt
 def docs(request, return_json=True):
-    """
-    API view docs()
+    """ The HTTP API view docs() returns as json objects one or more text documents
+        processed only by a spaCy pipeline. 
+        Input parameters in the request body: text, file_key, obj_type, obj_id;
+        they cannot be all missing;  obj_type and obj_id make sense only in pairs;
+        the value of the text parameter can be the URL of an online text document.
+        If the argument return_json is False, the function is called internally by the analyze view().
+        Output: a json object in the body of the POST response or,
+        if the view is called internally, a spaCy Doc objects.
+        Processing:
+        if the file_key parameter is present, this is intended to identify a spaCy Docbin object persisted
+        in the server's filesystem; obj_type and obj_id, if present, restrict the selection to a single Doc.
+        if, instead, the text parameter is present, it is converted to a spaCy Doc, before being returned
+        in one of the two Ouput modes mentioned above.
     """
     if request.method == 'POST':
         data = json.loads(request.body.decode('utf-8'))
         text = data.get('text', '')
         file_key = data.get('file_key', '')
         obj_type = data.get('obj_type', '')
-        obj_id = int(data.get('obj_id', 0))
+        obj_id = int(data.get('obj_id', "") or 0)
         if file_key:
             language = language_from_file_key(file_key)
             file_key, docbin = get_docbin(file_key=file_key)
-            docs = get_docs(docbin, language)
+            docs = list(get_docs(docbin, language))
             if obj_type and obj_id:
+                n_docs = 0
                 for doc in docs:
                     if doc._.obj_type == obj_type and doc._.obj_id == obj_id:
                         docs = [doc]
+                        n_docs = 1
                         break
+            else:
+                n_docs = len(docbin)
             if return_json:
                 data = [doc_to_json(doc) for doc in docs]
                 return JsonResponse(data) # return list with 1 doc as json on API
             else:
-                return docs # return a list of docs internally
+                assert n_docs
+                if n_docs > 1:
+                    doc = Doc.from_docs(docs)
+                else:
+                    doc = docs[0]
+                return doc # return a doc internally
         else:
             if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
                 page = requests.get(text)
@@ -153,7 +181,12 @@ def docs(request, return_json=True):
 
 @csrf_exempt
 def compare(request):
-    'API compare documents view'
+    """ Caveat: this view hasn't been re-tested after major revision of this module.
+        The HTTP API view compare () returns as json objects the similarity score computed
+        by spaaCY among two text document.
+        Input parameter in the Request body: text;
+        the first two lines of the text must by two URLs identifying online text documents.
+    """
     doc_dicts = []
     if request.method == 'POST':
         text = request.body.decode('utf-8')
@@ -206,7 +239,6 @@ def compare(request):
 
     else:
         return JsonResponse({'methods_allowed': 'POST'})
-
 
 @csrf_exempt
 def new_corpus(request):
