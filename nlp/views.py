@@ -174,7 +174,8 @@ def docs(request, return_json=True):
                 data = [text_to_doc(text, return_json=True)]
                 return JsonResponse(data) # return list with 1 doc as json on API
             else:
-                return [text_to_doc(text)] # return list with 1 doc internally
+                # return [text_to_doc(text)] # return list with 1 doc internally
+                return text_to_doc(text)
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
