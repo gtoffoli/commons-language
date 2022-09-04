@@ -1,0 +1,69 @@
+asgiref==3.5.2
+beautifulsoup4==4.11.1
+bidict==0.22.0
+blis==0.7.7
+catalogue==2.0.7
+certifi==2022.5.18.1
+chardet==4.0.0
+charset-normalizer==2.0.12
+click==8.1.3
+cloudpickle==2.1.0
+cssselect==1.1.0
+cycler==0.11.0
+cymem==2.0.6
+da-core-news-md @ https://github.com/explosion/spacy-models/releases/download/da_core_news_md-3.3.0/da_core_news_md-3.3.0-py3-none-any.whl
+Django==4.0.5
+django-appconf==1.0.5
+django-compressor==4.0
+django-cors-headers==3.13.0
+el-core-news-md @ https://github.com/explosion/spacy-models/releases/download/el_core_news_md-3.3.0/el_core_news_md-3.3.0-py3-none-any.whl
+en-core-web-md @ https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.3.0/en_core_web_md-3.3.0-py3-none-any.whl
+es-core-news-md @ https://github.com/explosion/spacy-models/releases/download/es_core_news_md-3.3.0/es_core_news_md-3.3.0-py3-none-any.whl
+fonttools==4.33.3
+gensim==4.2.0
+globre==0.1.5
+hr-core-news-md @ file:///home/toffoli/download/hr_core_news_md-3.4.0a1-py3-none-any.whl
+hr-core-news-sm==0.0.0
+idna==3.3
+it-core-news-md @ https://github.com/explosion/spacy-models/releases/download/it_core_news_md-3.3.0/it_core_news_md-3.3.0-py3-none-any.whl
+Jinja2==3.1.2
+kiwisolver==1.4.2
+langcodes==3.3.0
+langid==1.1.6
+loky==3.1.0
+lt-core-news-md @ https://github.com/explosion/spacy-models/releases/download/lt_core_news_md-3.3.0/lt_core_news_md-3.3.0-py3-none-any.whl
+lxml==4.9.0
+MarkupSafe==2.1.1
+matplotlib==3.5.2
+murmurhash==1.0.7
+numpy==1.22.4
+packaging==21.3
+pandas==1.4.2
+pathy==0.6.1
+Pillow==9.1.1
+preshed==3.0.6
+psycopg2==2.9.3
+pydantic==1.8.2
+pyparsing==3.0.9
+python-dateutil==2.8.2
+pytz==2022.1
+rcssmin==1.1.0
+readability-lxml==0.8.1
+requests==2.27.1
+rjsmin==1.2.0
+scipy==1.8.1
+six==1.16.0
+smart-open==5.2.1
+soupsieve==2.3.2.post1
+spacy==3.3.1
+spacy-legacy==3.0.9
+spacy-loggers==1.0.2
+sqlparse==0.4.2
+srsly==2.4.3
+thinc==8.0.17
+tqdm==4.64.0
+typer==0.4.1
+typing_extensions==4.2.0
+urllib3==1.26.9
+uWSGI==2.0.20
+wasabi==0.9.1

@@ -105,6 +105,9 @@ def analyze(request):
         ret = analyze_doc(text='', doc=doc)
         ret['doc'] = None
         ret.update(doc_to_json(doc, language))
+        analyzed_text = ret.get('analyzed_text', '')
+        if analyzed_text:
+            ret['text'] = analyzed_text
         return JsonResponse(ret)
     else:
         ret = {'methods_allowed': 'POST'}
