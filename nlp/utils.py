@@ -10,7 +10,7 @@ from collections import defaultdict
 from django.conf import settings
 import spacy 
 from spacy import displacy
-from spacy.tokens import Doc, DocBin
+from spacy.tokens import Doc, DocBin, Span
 from spacy.attrs import ORTH
 # from gensim.summarization import summarize
 import pandas as pd
@@ -22,6 +22,7 @@ try:
 except:
     def _init_doc(doc):
         return doc
+from nlp.entity_grid import EntityGrid, get_local_coherence
 
 def text_to_list(text):
     if not text:
@@ -221,15 +222,26 @@ def merge_docs(language=None, docs=[], docbin=None, text=None):
         _init_doc(doc)
     return 0, doc
 
+def add_paragraph_spans(doc):
+    """ annotate the doc with multi-sentence spans representing paragraphs;
+        a paragraph starts with a sentence whose first token has SPACE pos,
+        which presumably derives from one or more newline characters """
+    spans = []
+    start = 0
+    end = None
+    for sent in doc.sents:
+        if doc[sent.start].pos_ == 'SPACE':
+            if end:
+                spans.append(doc[start:end])
+                start = sent.start
+                # end = None
+        end = sent.end
+    spans.append(doc[start:end])
+    doc.spans['PARA'] = spans
+    return spans
+
 # def analyze_doc(doc, keys=[], return_text=True):
 def analyze_doc(doc=None, text='', keys=[], return_text=True):
-
-    """
-    language = doc.lang_
-    ret = {'language': language}
-    text = doc.text
-    """
-
     assert doc or text
     if doc:
         text = doc.text
@@ -347,6 +359,13 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         except:
             ret['noun_chunks'] = []
 
+    if 'text_cohesion' in keys:
+        spans = add_paragraph_spans(doc)
+        ret['paragraphs'] = [[i, span.text] for i, span in enumerate(spans)]
+        ret['cohesion_by_similarity'] = local_cohesion_by_similarity(doc)
+        ret['cohesion_by_repetitions'] = local_cohesion_by_repetitions(doc)
+        ret['cohesion_by_entity_graph'] = local_cohesion_by_entity_graph(doc)
+
     return ret
 
 def get_sorted_keywords(language=None, doc=None, docs=[], text=None):
@@ -437,6 +456,64 @@ def compare_docs(doc_dicts):
         similarities.append(doc.similarity(doc_0))
     ret = {'n_docs': len(doc_dicts), 'similarity': similarities[0]}
     return ret
+
+def local_cohesion_by_similarity(doc, distance=2):
+    """ describe local cohesion of a doc as a list of similarity scores
+        computed by spaCy between contiguous or neighbouring sentences;
+        the underlying model is highly related to collocations """
+    assert distance >= 1
+    paras = doc.spans['PARA']
+    local_cohesion = []
+    n_paras = len(paras)
+    if n_paras >= 2:
+        for i in range(1, n_paras):
+            para_similarity = 0
+            window = range(min(i, distance))
+            for j in window:
+                para_similarity += paras[i].similarity(paras[i-(j+1)])
+            para_similarity /= len(window)
+            local_cohesion.append(para_similarity)
+            i += 1
+    return [0] + local_cohesion
+
+def local_cohesion_by_repetitions(doc, distance=2):
+    """ describe local cohesion of a doc as a list of frequencies of lemmas
+        repeated between contiguous or neighbouring sentences;
+        this algorithm could be improved by taking into account synonyms
+        and other semantic relationship between words """
+    assert distance >= 1
+    local_cohesion = []
+    paras = doc.spans['PARA']
+    n_paras = len(paras)
+    if n_paras >= 2:
+        lemmas_list = []
+        for para in paras:
+            lemmas = set()
+            for token in para:
+                if token.pos_ in ['NOUN', 'PROPN',]:
+                    lemmas.add(token.lemma_)
+            lemmas_list.append(lemmas)
+        for i in range(1, n_paras):
+            repetitions = 0
+            window = range(min(i, distance))
+            for j in window:
+                repetitions += len(lemmas_list[i].intersection(lemmas_list[i-(j+1)]))
+            repetitions /= len(window)
+            local_cohesion.append(repetitions)
+    return [0] + local_cohesion
+
+def local_cohesion_by_entity_graph(doc):
+    """ the API of the algorithm are described in 
+        https://trunajod20.readthedocs.io/en/latest/api_reference/entity_grid.html
+        if the 'method' argument is present, characterize the local cohesion of a doc
+        by a float score computed with the corresponding method,
+        else return a list of the scores computed with all 6 available methods """
+    grid = EntityGrid(doc)
+    coherence_values = get_local_coherence(grid)
+    coherence_keys = [
+      'local_coherence_PU', 'local_coherence_PW', 'local_coherence_PACC',
+      'local_coherence_PU_dist', 'local_coherence_PW_dist', 'local_coherence_PACC_dist',]
+    return list(zip(coherence_keys, coherence_values))
 
 base_file_key_format = '_{principal_key}_{serial}_{language}'
 # user_file_key_format = 'u' + base_file_key_format

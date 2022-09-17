@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from .utils import analyze_doc, visualize_text # , analyze_text
-from .utils import text_to_list, text_to_doc #, get_doc_attributes, compare_docs
+from .utils import text_to_list, text_to_doc, get_doc_attributes #, compare_docs
 from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
 from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
 from .utils import get_docs, doc_to_json
@@ -122,12 +122,12 @@ def docs(request, return_json=True):
         the value of the text parameter can be the URL of an online text document.
         If the argument return_json is False, the function is called internally by the analyze view().
         Output: a json object in the body of the POST response or,
-        if the view is called internally, a spaCy Doc objects.
+        if the view is called internally, a spaCy Doc object.
         Processing:
         if the file_key parameter is present, this is intended to identify a spaCy Docbin object persisted
         in the server's filesystem; obj_type and obj_id, if present, restrict the selection to a single Doc.
         if, instead, the text parameter is present, it is converted to a spaCy Doc, before being returned
-        in one of the two Ouput modes mentioned above.
+        in one of the two Output modes mentioned above.
     """
     if request.method == 'POST':
         data = json.loads(request.body.decode('utf-8'))
@@ -243,6 +243,26 @@ def compare(request):
 
     else:
         return JsonResponse({'methods_allowed': 'POST'})
+
+@csrf_exempt
+def text_cohesion(request):
+    """ The HTTP API view text_cohesion() .
+        Output: .
+    """
+    if request.method == 'POST':
+        # doc = list(docs(request, return_json=False))[0]
+        doc = docs(request, return_json=False)
+        language = doc.lang_
+        ret = analyze_doc(text='', doc=doc, keys=['sentences', 'text_cohesion',])
+        ret['doc'] = None
+        ret.update(doc_to_json(doc, language))
+        analyzed_text = ret.get('analyzed_text', '')
+        if analyzed_text:
+            ret['text'] = analyzed_text
+        return JsonResponse(ret)
+    else:
+        ret = {'methods_allowed': 'POST'}
+        return JsonResponse(ret)
 
 @csrf_exempt
 def new_corpus(request):
