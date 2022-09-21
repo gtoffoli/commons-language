@@ -114,9 +114,11 @@ def customize_model(model):
 def doc_to_json(doc, language):
     json = doc.to_json()
     json['language'] = language
+    # create a dict of json tokens keyed by character position in doc (idx)
     start_dict = {}
     for token_data in json['tokens']:
         start_dict[token_data['start']] = token_data
+    # augment each token in json with additional attributes
     for token in doc:
         token_data = start_dict[token.idx]
         token_data['stop'] = token.is_stop
@@ -125,7 +127,8 @@ def doc_to_json(doc, language):
         token_data['num'] = token.like_num
         token_data['email'] = token.like_email
         token_data['url'] = token.like_url
-    return json
+        # token_data['text'] = token.text
+    return json # keys: ['text', 'ents', 'sents', 'tokens', 'language'])
 
 # as a side-effect, extends the language model
 def text_to_doc(text, return_json=False, doc_key=None):
@@ -249,7 +252,10 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         doc = text_to_doc(text)
     language = doc.lang_
 
-    ret = {'doc': doc, 'language': language}
+    # ret = {'doc': doc, 'language': language}
+    if 'text_cohesion' in keys:
+        spans = add_paragraph_spans(doc)
+    ret = {'doc': doc_to_json(doc, language), 'language': language}
 
     if not keys or 'text' in keys:
         ret['text'] = text
@@ -360,10 +366,12 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
             ret['noun_chunks'] = []
 
     if 'text_cohesion' in keys:
-        spans = add_paragraph_spans(doc)
-        ret['paragraphs'] = [[i, span.text] for i, span in enumerate(spans)]
+        # spans = add_paragraph_spans(doc)
+        ret['paragraphs'] = [[i, span.text] for i, span in enumerate(doc.spans['PARA'])]
         ret['cohesion_by_similarity'] = local_cohesion_by_similarity(doc)
-        ret['cohesion_by_repetitions'] = local_cohesion_by_repetitions(doc)
+        local_cohesion, repeated_lemmas = local_cohesion_by_repetitions(doc)
+        ret['cohesion_by_repetitions'] = local_cohesion
+        ret['repeated_lemmas'] = sorted(repeated_lemmas.items(), key=lambda x: x[1], reverse=True)
         ret['cohesion_by_entity_graph'] = local_cohesion_by_entity_graph(doc)
 
     return ret
@@ -485,6 +493,7 @@ def local_cohesion_by_repetitions(doc, distance=2):
     local_cohesion = []
     paras = doc.spans['PARA']
     n_paras = len(paras)
+    repeated_lemmas = defaultdict(int)
     if n_paras >= 2:
         lemmas_list = []
         for para in paras:
@@ -497,10 +506,14 @@ def local_cohesion_by_repetitions(doc, distance=2):
             repetitions = 0
             window = range(min(i, distance))
             for j in window:
-                repetitions += len(lemmas_list[i].intersection(lemmas_list[i-(j+1)]))
-            repetitions /= len(window)
-            local_cohesion.append(repetitions)
-    return [0] + local_cohesion
+                repeated = lemmas_list[i].intersection(lemmas_list[i-(j+1)])
+                n_repetitions = len(repeated)
+                for lemma in repeated:
+                    repeated_lemmas[lemma] += 1
+            n_repetitions /= len(window)
+            local_cohesion.append(n_repetitions)
+        local_cohesion = [0] + local_cohesion
+    return local_cohesion, repeated_lemmas
 
 def local_cohesion_by_entity_graph(doc):
     """ the API of the algorithm are described in 

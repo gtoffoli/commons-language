@@ -101,10 +101,9 @@ def analyze(request):
         # doc = list(docs(request, return_json=False))[0]
         doc = docs(request, return_json=False)
         language = doc.lang_
-        # ret = analyze_text('', doc=doc, language=language)
         ret = analyze_doc(text='', doc=doc)
-        ret['doc'] = None
-        ret.update(doc_to_json(doc, language))
+        # ret['doc'] = None
+        # ret.update(doc_to_json(doc, language))
         analyzed_text = ret.get('analyzed_text', '')
         if analyzed_text:
             ret['text'] = analyzed_text
@@ -254,8 +253,8 @@ def text_cohesion(request):
         doc = docs(request, return_json=False)
         language = doc.lang_
         ret = analyze_doc(text='', doc=doc, keys=['sentences', 'text_cohesion',])
-        ret['doc'] = None
-        ret.update(doc_to_json(doc, language))
+        # ret['doc'] = None
+        # ret.update(doc_to_json(doc, language))
         analyzed_text = ret.get('analyzed_text', '')
         if analyzed_text:
             ret['text'] = analyzed_text
