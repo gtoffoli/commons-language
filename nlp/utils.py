@@ -8,7 +8,7 @@ from subprocess import check_output
 from collections import defaultdict
 
 from django.conf import settings
-import spacy 
+# import spacy 
 from spacy import displacy
 from spacy.tokens import Doc, DocBin, Span
 from spacy.attrs import ORTH
@@ -235,11 +235,10 @@ def add_paragraph_spans(doc):
     for sent in doc.sents:
         if doc[sent.start].pos_ == 'SPACE':
             if end:
-                spans.append(doc[start:end])
+                spans.append(Span(doc, start, end))
                 start = sent.start
-                # end = None
         end = sent.end
-    spans.append(doc[start:end])
+    spans.append(Span(doc, start, end))
     doc.spans['PARA'] = spans
     return spans
 
@@ -252,10 +251,10 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         doc = text_to_doc(text)
     language = doc.lang_
 
-    # ret = {'doc': doc, 'language': language}
-    if 'text_cohesion' in keys:
-        spans = add_paragraph_spans(doc)
     ret = {'doc': doc_to_json(doc, language), 'language': language}
+    # if 'text_cohesion' in keys:
+    paragraphs = add_paragraph_spans(doc)
+    ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
 
     if not keys or 'text' in keys:
         ret['text'] = text
@@ -366,8 +365,7 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
             ret['noun_chunks'] = []
 
     if 'text_cohesion' in keys:
-        # spans = add_paragraph_spans(doc)
-        ret['paragraphs'] = [[i, span.text] for i, span in enumerate(doc.spans['PARA'])]
+        # ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
         ret['cohesion_by_similarity'] = local_cohesion_by_similarity(doc)
         local_cohesion, repeated_lemmas = local_cohesion_by_repetitions(doc)
         ret['cohesion_by_repetitions'] = local_cohesion
