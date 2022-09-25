@@ -127,7 +127,7 @@ def doc_to_json(doc, language):
         token_data['num'] = token.like_num
         token_data['email'] = token.like_email
         token_data['url'] = token.like_url
-        # token_data['text'] = token.text
+        token_data['text'] = token.text
     return json # keys: ['text', 'ents', 'sents', 'tokens', 'language'])
 
 # as a side-effect, extends the language model
@@ -231,14 +231,27 @@ def add_paragraph_spans(doc):
         which presumably derives from one or more newline characters """
     spans = []
     start = 0
-    end = None
+    end = 0
     for sent in doc.sents:
-        if doc[sent.start].pos_ == 'SPACE':
-            if end:
+        # if doc[sent.start].pos_ == 'SPACE':
+        start_token = doc[sent.start]
+        end_token = doc[sent.end - 1] 
+        if start_token.text.startswith('\n') or start_token.text.startswith('\r'):
+            # append span ending with the previous sentence
+            if (start_token.pos_=='SPACE' and (end-start) > 1) or (start_token.pos_!='SPACE' and (end-start) > 0):
                 spans.append(Span(doc, start, end))
-                start = sent.start
-        end = sent.end
-    spans.append(Span(doc, start, end))
+            start = sent.start
+        # elif end_token.pos_ == 'SPACE' and ('\n' in end_token.text or '\r' in end_token.text):
+        elif end_token.text.endswith('\n') or end_token.text.endswith('\r'):
+            # append span ending with the current sentence
+            if (end_token.pos_=='SPACE' and (end-start) > 1) or (end_token.pos_!='SPACE' and (end-start) > 0):
+                spans.append(Span(doc, start, end))
+            start = end
+            end = sent.end
+        else:
+            end = sent.end
+    if (end-start) > 1:
+        spans.append(Span(doc, start, end))
     doc.spans['PARA'] = spans
     return spans
 
@@ -463,7 +476,7 @@ def compare_docs(doc_dicts):
     ret = {'n_docs': len(doc_dicts), 'similarity': similarities[0]}
     return ret
 
-def local_cohesion_by_similarity(doc, distance=2):
+def local_cohesion_by_similarity(doc, distance=3):
     """ describe local cohesion of a doc as a list of similarity scores
         computed by spaCy between contiguous or neighbouring sentences;
         the underlying model is highly related to collocations """
@@ -471,18 +484,27 @@ def local_cohesion_by_similarity(doc, distance=2):
     paras = doc.spans['PARA']
     local_cohesion = []
     n_paras = len(paras)
+    mean_cohesion = 0
     if n_paras >= 2:
+        cohesion_sum = 0
         for i in range(1, n_paras):
             para_similarity = 0
             window = range(min(i, distance))
+            weight = 0
             for j in window:
-                para_similarity += paras[i].similarity(paras[i-(j+1)])
-            para_similarity /= len(window)
+                dist = j+1
+                para_similarity += paras[i].similarity(paras[i-dist]) / dist
+                weight += 1/dist
+            # para_similarity /= len(window)
+            para_similarity /= weight
             local_cohesion.append(para_similarity)
+            cohesion_sum += para_similarity
             i += 1
-    return [0] + local_cohesion
+        mean_cohesion = cohesion_sum / (n_paras-1)
+    # return [0] + local_cohesion
+    return [mean_cohesion] + local_cohesion
 
-def local_cohesion_by_repetitions(doc, distance=2):
+def local_cohesion_by_repetitions(doc, distance=3):
     """ describe local cohesion of a doc as a list of frequencies of lemmas
         repeated between contiguous or neighbouring sentences;
         this algorithm could be improved by taking into account synonyms
@@ -491,6 +513,7 @@ def local_cohesion_by_repetitions(doc, distance=2):
     local_cohesion = []
     paras = doc.spans['PARA']
     n_paras = len(paras)
+    mean_cohesion = 0
     repeated_lemmas = defaultdict(int)
     if n_paras >= 2:
         lemmas_list = []
@@ -500,18 +523,24 @@ def local_cohesion_by_repetitions(doc, distance=2):
                 if token.pos_ in ['NOUN', 'PROPN',]:
                     lemmas.add(token.lemma_)
             lemmas_list.append(lemmas)
+        cohesion_sum = 0
         for i in range(1, n_paras):
-            repetitions = 0
+            n_repetitions = 0
             window = range(min(i, distance))
+            weight = 0
             for j in window:
-                repeated = lemmas_list[i].intersection(lemmas_list[i-(j+1)])
-                n_repetitions = len(repeated)
+                dist = j+1
+                repeated = lemmas_list[i].intersection(lemmas_list[i-dist])
+                n_repetitions += len(repeated)/dist
+                weight += 1/dist
                 for lemma in repeated:
                     repeated_lemmas[lemma] += 1
-            n_repetitions /= len(window)
+            # n_repetitions /= len(window)
+            n_repetitions /= weight
             local_cohesion.append(n_repetitions)
-        local_cohesion = [0] + local_cohesion
-    return local_cohesion, repeated_lemmas
+            cohesion_sum += n_repetitions
+        mean_cohesion = cohesion_sum / (n_paras-1)
+    return [mean_cohesion] + local_cohesion, repeated_lemmas
 
 def local_cohesion_by_entity_graph(doc):
     """ the API of the algorithm are described in 
