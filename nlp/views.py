@@ -99,7 +99,7 @@ def analyze(request):
     """
     if request.method == 'POST':
         # doc = list(docs(request, return_json=False))[0]
-        doc = docs(request, return_json=False)
+        doc = make_docs(request, return_json=False)
         language = doc.lang_
         ret = analyze_doc(text='', doc=doc)
         # ret['doc'] = None
@@ -113,8 +113,8 @@ def analyze(request):
         return JsonResponse(ret)
 
 @csrf_exempt
-def docs(request, return_json=True):
-    """ The HTTP API view docs() returns as json objects one or more text documents
+def make_docs(request, return_json=True):
+    """ The HTTP API view make_docs() returns as json objects one or more text documents
         processed only by a spaCy pipeline. 
         Input parameters in the request body: text, file_key, obj_type, obj_id;
         they cannot be all missing;  obj_type and obj_id make sense only in pairs;
@@ -189,7 +189,7 @@ def text_cohesion(request):
     """
     if request.method == 'POST':
         # doc = list(docs(request, return_json=False))[0]
-        doc = docs(request, return_json=False)
+        doc = make_docs(request, return_json=False)
         language = doc.lang_
         ret = analyze_doc(text='', doc=doc, keys=['sentences', 'text_cohesion',])
         # ret['doc'] = None
@@ -240,7 +240,7 @@ def word_contexts(request):
                 docs.append(doc)
     """
     from tmtoolkit.corpus import Corpus as tm_Corpus, kwic
-    doc = docs(request, return_json=False)
+    doc = make_docs(request, return_json=False)
     language = doc.lang_
     docs = [doc]
     
