@@ -183,67 +183,6 @@ def docs(request, return_json=True):
         return JsonResponse(ret)
 
 @csrf_exempt
-def compare(request):
-    """ Caveat: this view hasn't been re-tested after major revision of this module.
-        The HTTP API view compare () returns as json objects the similarity score computed
-        by spaaCY among two text document.
-        Input parameter in the Request body: text;
-        the first two lines of the text must by two URLs identifying online text documents.
-    """
-    doc_dicts = []
-    if request.method == 'POST':
-        text = request.body.decode('utf-8')
-        try:
-            text = json.loads(text)['text']
-        except ValueError:
-            # catch POST form as well
-            for key in request.POST.dict().keys():
-                text = key
-
-        if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
-            lines = text_to_list(text)
-            i = 0
-            for line in lines[:2]:
-                if not line.startswith(('http://', 'https://', 'www')):
-                    response = JsonResponse({'status': 'false', 'message': 'need at least 2 urls!'})
-                    response.status_code = 400
-                    return response
-                page = requests.get(line)
-                doc = Document(page.text)
-                soup = BeautifulSoup(doc.summary())
-                text = soup.get_text()
-                title = doc.title().strip()
-                text = '{0}.\n{1}'.format(title, text)
-                if not text:
-                    response = JsonResponse({'status': 'false', 'message': 'need some text here!'})
-                    response.status_code = 400
-                    return response
-    
-                # add some limit here
-                text = text[:200000]
-                doc = text_to_doc(text)
-                language = doc.lang_
-                if i>0 and language!=doc_dicts[0]['language']:
-                    response = JsonResponse(
-                        {'status': 'false', 'message': 'texts must be in same language!'})
-                    response.status_code = 400
-                    return response
-                    
-                doc_dicts.append({'language': language, 'doc': doc})
-                i += 1
-            ret = compare_docs(doc_dicts)
-            ret['language'] = language
-            ret['text'] = text
-            return JsonResponse(ret)
-        else:
-            response = JsonResponse({'status': 'false', 'message': 'need 2 documents!'})
-            response.status_code = 400
-            return response
-
-    else:
-        return JsonResponse({'methods_allowed': 'POST'})
-
-@csrf_exempt
 def text_cohesion(request):
     """ The HTTP API view text_cohesion() .
         Output: .
@@ -262,6 +201,84 @@ def text_cohesion(request):
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
+
+@csrf_exempt
+def word_contexts(request):
+    MIN_KEYWORDS = 10
+    MIN_CONTEXTS = 3
+    CONTEXT_SIZE = 5
+    """
+    preprocess_spec = importlib.util.find_spec("tmtoolkit.preprocess")
+    if preprocess_spec is not None:
+        from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
+        TMT = 'old'
+    else:
+        from tmtoolkit.corpus import Document as tm_Document, Corpus as tm_Corpus, kwic
+        TMT = "new"
+    data = json.loads(request.body.decode('utf-8'))
+    text = data.get('text', None)
+    if text is not None:
+        # ret = analyze_text(text)
+        ret = analyze_doc(text=text)
+        language = ret['language']
+        docs = [ret['doc']]
+    else:
+        file_key = data['file_key']
+        obj_type = data.get('obj_type', '')
+        obj_id = data.get('obj_id', '')
+        file_key, docbin = get_docbin(file_key=file_key)
+        language = language_from_file_key(file_key)
+        model = settings.LANGUAGE_MODELS[language]
+        docs = []
+        i = 0
+        for doc in list(docbin.get_docs(model.vocab)):
+            if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
+                if TMT == 'old':
+                    _init_doc(doc)
+                i += 1
+                doc._.label = 'doc_{}'.format(i)
+                docs.append(doc)
+    """
+    from tmtoolkit.corpus import Corpus as tm_Corpus, kwic
+    doc = docs(request, return_json=False)
+    language = doc.lang_
+    docs = [doc]
+    
+    keywords, lemma_forms = get_sorted_keywords(language=language, docs=docs)
+    keywords = [kw for kw in keywords if len(kw[0])>1]
+    keywords_in_context = []
+    j = 0
+    for lemma, frequency in keywords:
+        """
+        if TMT == 'old':
+            contexts_dict = \
+                kwic(docs, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+                glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
+                glue=None, highlight_keyword=None)
+        else: # TMT == 'new'
+        """
+        contexts_dict = {}
+        doc_dict = {}
+        for doc in docs:
+            doc_dict[doc._.label] = doc.text
+        corpus = tm_Corpus(doc_dict, spacy_instance=settings.LANGUAGE_MODELS[language])
+        contexts_dict = \
+            kwic(corpus, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
+            glob_method='match', inverse=False,  as_tables=False, only_non_empty=False, glue=None)
+        contexts = []
+        for context_item in contexts_dict.items():
+            for window in context_item[1]:
+                left = ' '.join(window[:CONTEXT_SIZE])
+                middle = window[CONTEXT_SIZE]
+                right = ' '.join(window[-CONTEXT_SIZE:])
+                contexts.append([left, middle, right])
+        j += 1
+        if j >= MIN_KEYWORDS and frequency < MIN_CONTEXTS:
+            break
+        if contexts:
+            keyword_in_context = {'kw': lemma, 'frequency': frequency, 'contexts': contexts}
+            keywords_in_context.append(keyword_in_context)
+    return JsonResponse({'language': language, 'keywords': keywords, 'kwics': keywords_in_context})
 
 @csrf_exempt
 def new_corpus(request):
@@ -344,71 +361,62 @@ def compare_docs(request):
     return JsonResponse({'status': 'true', 'result': result})
  
 @csrf_exempt
-def word_contexts(request):
-    data = json.loads(request.body.decode('utf-8'))
-    MIN_KEYWORDS = 10
-    MIN_CONTEXTS = 3
-    CONTEXT_SIZE = 5
-    preprocess_spec = importlib.util.find_spec("tmtoolkit.preprocess")
-    if preprocess_spec is not None:
-        from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
-        TMT = 'old'
-    else:
-        from tmtoolkit.corpus import Document as tm_Document, Corpus as tm_Corpus, kwic
-        TMT = "new"
-    text = data.get('text', None)
-    if text is not None:
-        # ret = analyze_text(text)
-        ret = analyze_doc(text=text)
-        language = ret['language']
-        docs = [ret['doc']]
-    else:
-        file_key = data['file_key']
-        obj_type = data.get('obj_type', '')
-        obj_id = data.get('obj_id', '')
-        file_key, docbin = get_docbin(file_key=file_key)
-        language = language_from_file_key(file_key)
-        model = settings.LANGUAGE_MODELS[language]
-        docs = []
-        i = 0
-        for doc in list(docbin.get_docs(model.vocab)):
-            if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
-                if TMT == 'old':
-                    _init_doc(doc)
+def compare(request):
+    """ Caveat: this view hasn't been re-tested after major revision of this module.
+        The HTTP API view compare () returns as json objects the similarity score computed
+        by spaaCY among two text document.
+        Input parameter in the Request body: text;
+        the first two lines of the text must by two URLs identifying online text documents.
+    """
+    doc_dicts = []
+    if request.method == 'POST':
+        text = request.body.decode('utf-8')
+        try:
+            text = json.loads(text)['text']
+        except ValueError:
+            # catch POST form as well
+            for key in request.POST.dict().keys():
+                text = key
+
+        if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
+            lines = text_to_list(text)
+            i = 0
+            for line in lines[:2]:
+                if not line.startswith(('http://', 'https://', 'www')):
+                    response = JsonResponse({'status': 'false', 'message': 'need at least 2 urls!'})
+                    response.status_code = 400
+                    return response
+                page = requests.get(line)
+                doc = Document(page.text)
+                soup = BeautifulSoup(doc.summary())
+                text = soup.get_text()
+                title = doc.title().strip()
+                text = '{0}.\n{1}'.format(title, text)
+                if not text:
+                    response = JsonResponse({'status': 'false', 'message': 'need some text here!'})
+                    response.status_code = 400
+                    return response
+    
+                # add some limit here
+                text = text[:200000]
+                doc = text_to_doc(text)
+                language = doc.lang_
+                if i>0 and language!=doc_dicts[0]['language']:
+                    response = JsonResponse(
+                        {'status': 'false', 'message': 'texts must be in same language!'})
+                    response.status_code = 400
+                    return response
+                    
+                doc_dicts.append({'language': language, 'doc': doc})
                 i += 1
-                doc._.label = 'doc_{}'.format(i)
-                docs.append(doc)
-    keywords, lemma_forms = get_sorted_keywords(language=language, docs=docs)
-    keywords = [kw for kw in keywords if len(kw[0])>1]
-    keywords_in_context = []
-    j = 0
-    for lemma, frequency in keywords:
-        if TMT == 'old':
-            contexts_dict = \
-                kwic(docs, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
-                glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
-                glue=None, highlight_keyword=None)
-        else: # TMT == 'new'
-            contexts_dict = {}
-            doc_dict = {}
-            for doc in docs:
-                doc_dict[doc._.label] = doc.text
-            corpus = tm_Corpus(doc_dict, spacy_instance=settings.LANGUAGE_MODELS[language])
-            contexts_dict = \
-                kwic(corpus, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
-                glob_method='match', inverse=False,  as_tables=False, only_non_empty=False, glue=None)
-        contexts = []
-        for context_item in contexts_dict.items():
-            for window in context_item[1]:
-                left = ' '.join(window[:CONTEXT_SIZE])
-                middle = window[CONTEXT_SIZE]
-                right = ' '.join(window[-CONTEXT_SIZE:])
-                contexts.append([left, middle, right])
-        j += 1
-        if j >= MIN_KEYWORDS and frequency < MIN_CONTEXTS:
-            break
-        if contexts:
-            keyword_in_context = {'kw': lemma, 'frequency': frequency, 'contexts': contexts}
-            keywords_in_context.append(keyword_in_context)
-    # return JsonResponse({'keywords': keywords, 'kwics': keywords_in_context})
-    return JsonResponse({'language': language, 'keywords': keywords, 'kwics': keywords_in_context})
+            ret = compare_docs(doc_dicts)
+            ret['language'] = language
+            ret['text'] = text
+            return JsonResponse(ret)
+        else:
+            response = JsonResponse({'status': 'false', 'message': 'need 2 documents!'})
+            response.status_code = 400
+            return response
+
+    else:
+        return JsonResponse({'methods_allowed': 'POST'})
