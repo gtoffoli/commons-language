@@ -3,7 +3,6 @@ import spacy
 import importlib
 
 from spacy.tokens import Doc
-# from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
@@ -102,8 +101,6 @@ def analyze(request):
         doc = make_docs(request, return_json=False)
         language = doc.lang_
         ret = analyze_doc(text='', doc=doc)
-        # ret['doc'] = None
-        # ret.update(doc_to_json(doc, language))
         analyzed_text = ret.get('analyzed_text', '')
         if analyzed_text:
             ret['text'] = analyzed_text
@@ -188,12 +185,9 @@ def text_cohesion(request):
         Output: .
     """
     if request.method == 'POST':
-        # doc = list(docs(request, return_json=False))[0]
         doc = make_docs(request, return_json=False)
         language = doc.lang_
         ret = analyze_doc(text='', doc=doc, keys=['sentences', 'text_cohesion',])
-        # ret['doc'] = None
-        # ret.update(doc_to_json(doc, language))
         analyzed_text = ret.get('analyzed_text', '')
         if analyzed_text:
             ret['text'] = analyzed_text
@@ -207,38 +201,6 @@ def word_contexts(request):
     MIN_KEYWORDS = 10
     MIN_CONTEXTS = 3
     CONTEXT_SIZE = 5
-    """
-    preprocess_spec = importlib.util.find_spec("tmtoolkit.preprocess")
-    if preprocess_spec is not None:
-        from tmtoolkit.preprocess._docfuncs import _init_doc, kwic
-        TMT = 'old'
-    else:
-        from tmtoolkit.corpus import Document as tm_Document, Corpus as tm_Corpus, kwic
-        TMT = "new"
-    data = json.loads(request.body.decode('utf-8'))
-    text = data.get('text', None)
-    if text is not None:
-        # ret = analyze_text(text)
-        ret = analyze_doc(text=text)
-        language = ret['language']
-        docs = [ret['doc']]
-    else:
-        file_key = data['file_key']
-        obj_type = data.get('obj_type', '')
-        obj_id = data.get('obj_id', '')
-        file_key, docbin = get_docbin(file_key=file_key)
-        language = language_from_file_key(file_key)
-        model = settings.LANGUAGE_MODELS[language]
-        docs = []
-        i = 0
-        for doc in list(docbin.get_docs(model.vocab)):
-            if not obj_type or (doc._.obj_type==obj_type and str(doc._.obj_id)==obj_id):
-                if TMT == 'old':
-                    _init_doc(doc)
-                i += 1
-                doc._.label = 'doc_{}'.format(i)
-                docs.append(doc)
-    """
     from tmtoolkit.corpus import Corpus as tm_Corpus, kwic
     doc = make_docs(request, return_json=False)
     language = doc.lang_
@@ -249,14 +211,6 @@ def word_contexts(request):
     keywords_in_context = []
     j = 0
     for lemma, frequency in keywords:
-        """
-        if TMT == 'old':
-            contexts_dict = \
-                kwic(docs, list(lemma_forms[lemma]), context_size=CONTEXT_SIZE, match_type='exact', ignore_case=False,
-                glob_method='match', inverse=False, with_metadata=False, as_dict=True, as_datatable=False, non_empty=False,
-                glue=None, highlight_keyword=None)
-        else: # TMT == 'new'
-        """
         contexts_dict = {}
         doc_dict = {}
         for doc in docs:
