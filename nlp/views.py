@@ -180,6 +180,30 @@ def make_docs(request, return_json=True):
         return JsonResponse(ret)
 
 @csrf_exempt
+def get_corpus(request):
+    """ The HTTP API view get_corpus().
+        Input: file_key, a unique filename built around a user id
+        Output: an extended serialized version of a spaCy doc 
+    """
+    if request.method == 'POST':
+        data = json.loads(request.body.decode('utf-8'))
+        file_key = data.get('file_key', '')
+        assert file_key
+        language = language_from_file_key(file_key)
+        file_key, docbin = get_docbin(file_key=file_key)
+        doc_list = []
+        for doc in get_docs(docbin, language):
+            doct_dict = doc_to_json(doc, language)
+            # see utils.get_docbin_summary
+            doc_summary = {'obj_type': doc._.obj_type, 'obj_id': doc._.obj_id, 'label': doc._.label, 'url': doc._.url}
+            doct_dict.update(doc_summary)
+            doc_list.append(doct_dict)
+        return JsonResponse(doc_list, safe=False)
+    else:
+        ret = {'methods_allowed': 'POST'}
+        return JsonResponse(ret)
+
+@csrf_exempt
 def text_cohesion(request):
     """ The HTTP API view text_cohesion() .
         Output: .
