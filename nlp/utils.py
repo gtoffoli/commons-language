@@ -210,7 +210,6 @@ def merge_docs(language=None, docs=[], docbin=None, text=None):
     if docbin:
         assert language is not None
         model = settings.LANGUAGE_MODELS[language]
-        # docs.extend(list(docbin.get_docs(model.vocab)))
         docs = docs + list(docbin.get_docs(model.vocab))
     if text:
         docs.append(text_to_doc(text))
@@ -611,16 +610,55 @@ def make_docbin(user_key, language=None):
     docbin.to_disk(path)
     return file_key, docbin
 
-def addto_docbin(docbin, doc, file_key):
+# def addto_docbin(docbin, doc, file_key):
+def addto_docbin(docbin, doc, file_key, index=None):
     n_docs = len(docbin)
-    if n_docs>0 and doc.lang_ != language_from_file_key(file_key):
+    print('index:', index)
+    if index is not None:
+        index = int(index)
+    assert index is None or (index >= 0 and index < n_docs)
+    language = language_from_file_key(file_key)
+    if n_docs > 0 and doc.lang_ != language:
+        print('doc has unexpected language')
         return file_key, None
-    docbin.add(doc)
+    # docbin.add(doc)
     path = path_from_file_key(file_key)
-    docbin.to_disk(path)
+    model = settings.LANGUAGE_MODELS[language]
+    docs = list(docbin.get_docs(model.vocab))
     if n_docs == 0:
+        docbin.add(doc)
+        print('doc added')
         file_key = file_key[:-2] + doc.lang_
         os.rename(path, os.path.join(settings.TEMP_ROOT, file_key)+'.spacy')
+        print('file_key changed to', file_key)
+    else:
+        obj_id = doc._.obj_id
+        obj_type = doc._.obj_type
+        doc_existing = None
+        for i, d in enumerate(docs):
+            if d._.obj_type == obj_type and d._.obj_id == obj_id:
+                doc_existing = i
+                print('doc exists with index', i)
+                break
+        print('doc_existing:', doc_existing)
+        if doc_existing == index:
+            print('doc unmoved', i)
+            return file_key, docbin
+        else:
+            if doc_existing is None: 
+                docbin.add(doc)
+                print('doc added')
+            else:
+                docs.remove(docs[doc_existing])
+                print('doc removed from position', doc_existing)
+                if doc_existing < index:
+                    docs.insert(index-1, doc)
+                    print('and reinserted at position', index-1)
+                else:
+                    docs.insert(index, doc)
+                    print('and reinserted at position', index)
+                docbin = DocBin(docs=docs, store_user_data=True)
+    docbin.to_disk(path)
     return file_key, docbin
 
 def get_docbin(file_key=None, user_key=None, language='??'):

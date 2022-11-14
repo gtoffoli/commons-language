@@ -273,7 +273,8 @@ def add_doc(request):
     if not request.method == 'POST':
         return JsonResponse({'status': 'false', 'message': 'invalid method!'})
     data = json.loads(request.body.decode('utf-8'))
-    file_key = data['file_key'] or None
+    file_key = data.get('file_key', None)
+    index = data.get('index', None)
     text = data['text']
     doc = text_to_doc(text)
     doc._.label = data['label']
@@ -282,7 +283,8 @@ def add_doc(request):
     doc._.url = data['url']
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
-    file_key, docbin = addto_docbin(docbin, doc, file_key)
+    # file_key, docbin = addto_docbin(docbin, doc, file_key)
+    file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
     else:
