@@ -371,13 +371,12 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         ret['lexical_attrs'] = lexical_attrs
 
     if not keys or 'noun_chunks' in keys:
-        """
+        # ret['noun_chunks'] = [[span.start, span.end] for span in doc.noun_chunks]
         try:
-            ret['noun_chunks'] = [re.sub(r'[^\w\s]', '', x.text) for x in doc.noun_chunks]
+            noun_chunks = [[span.start, span.end] for span in doc.noun_chunks]
         except:
-            ret['noun_chunks'] = []
-        """
-        ret['noun_chunks'] = [[span.start, span.end] for span in doc.noun_chunks]
+            noun_chunks = []
+        ret['noun_chunks'] = noun_chunks
 
     if 'text_cohesion' in keys:
         # ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
