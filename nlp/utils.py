@@ -254,7 +254,6 @@ def add_paragraph_spans(doc):
     doc.spans['PARA'] = spans
     return spans
 
-# def analyze_doc(doc, keys=[], return_text=True):
 def analyze_doc(doc=None, text='', keys=[], return_text=True):
     assert doc or text
     if doc:
@@ -264,7 +263,6 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
     language = doc.lang_
 
     ret = {'doc': doc_to_json(doc, language), 'language': language}
-    # if 'text_cohesion' in keys:
     paragraphs = add_paragraph_spans(doc)
     ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
 
@@ -371,7 +369,6 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         ret['lexical_attrs'] = lexical_attrs
 
     if not keys or 'noun_chunks' in keys:
-        # ret['noun_chunks'] = [[span.start, span.end] for span in doc.noun_chunks]
         try:
             noun_chunks = [[span.start, span.end] for span in doc.noun_chunks]
         except:
@@ -379,7 +376,6 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         ret['noun_chunks'] = noun_chunks
 
     if 'text_cohesion' in keys:
-        # ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
         ret['cohesion_by_similarity'] = local_cohesion_by_similarity(doc)
         local_cohesion, repeated_lemmas = local_cohesion_by_repetitions(doc)
         ret['cohesion_by_repetitions'] = local_cohesion
@@ -620,17 +616,19 @@ def addto_docbin(docbin, doc, file_key, index=None):
     if n_docs > 0 and doc.lang_ != language:
         print('doc has unexpected language')
         return file_key, None
-    # docbin.add(doc)
     path = path_from_file_key(file_key)
-    model = settings.LANGUAGE_MODELS[language]
-    docs = list(docbin.get_docs(model.vocab))
     if n_docs == 0:
         docbin.add(doc)
         print('doc added')
-        file_key = file_key[:-2] + doc.lang_
-        os.rename(path, os.path.join(settings.TEMP_ROOT, file_key)+'.spacy')
+        language = doc.lang_
+        file_key = file_key[:-2] + language
+        new_path = os.path.join(settings.TEMP_ROOT, file_key)+'.spacy'
+        os.rename(path, new_path)
+        path = new_path
         print('file_key changed to', file_key)
     else:
+        model = settings.LANGUAGE_MODELS[language]
+        docs = list(docbin.get_docs(model.vocab))
         obj_id = doc._.obj_id
         obj_type = doc._.obj_type
         doc_existing = None
@@ -640,7 +638,8 @@ def addto_docbin(docbin, doc, file_key, index=None):
                 print('doc exists with index', i)
                 break
         print('doc_existing:', doc_existing)
-        if doc_existing == index:
+        # if doc_existing == index:
+        if doc_existing is not None and doc_existing == index:
             print('doc unmoved', i)
             return file_key, docbin
         else:

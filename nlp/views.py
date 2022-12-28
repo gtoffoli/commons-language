@@ -130,7 +130,7 @@ def make_docs(request, return_json=True):
         text = data.get('text', '')
         file_key = data.get('file_key', '')
         obj_type = data.get('obj_type', '')
-        obj_id = int(data.get('obj_id', "") or 0)
+        obj_id = data.get('obj_id', '')
         if file_key:
             language = language_from_file_key(file_key)
             file_key, docbin = get_docbin(file_key=file_key)
@@ -283,7 +283,6 @@ def add_doc(request):
     doc._.url = data['url']
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
-    # file_key, docbin = addto_docbin(docbin, doc, file_key)
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
