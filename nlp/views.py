@@ -138,7 +138,7 @@ def make_docs(request, return_json=True):
             if obj_type and obj_id:
                 n_docs = 0
                 for doc in docs:
-                    if doc._.obj_type == obj_type and doc._.obj_id == obj_id:
+                    if doc._.obj_type == obj_type and str(doc._.obj_id) == str(obj_id):
                         docs = [doc]
                         n_docs = 1
                         break

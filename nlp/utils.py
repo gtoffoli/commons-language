@@ -112,7 +112,8 @@ def customize_model(model):
         pass
 
 def doc_to_json(doc, language):
-    json = doc.to_json()
+    # json = doc.to_json()
+    json = doc.to_json(underscore=['obj_type', 'obj_id', 'label', 'url'])
     json['language'] = language
     # create a dict of json tokens keyed by character position in doc (idx)
     start_dict = {}
