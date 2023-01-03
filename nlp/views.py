@@ -256,7 +256,8 @@ def word_contexts(request):
         if contexts:
             keyword_in_context = {'kw': lemma, 'frequency': frequency, 'contexts': contexts}
             keywords_in_context.append(keyword_in_context)
-    return JsonResponse({'language': language, 'keywords': keywords, 'kwics': keywords_in_context})
+    json = doc_to_json(doc, language)
+    return JsonResponse({'language': language, 'extended_attrs': json['_'], 'keywords': keywords, 'kwics': keywords_in_context})
 
 @csrf_exempt
 def new_corpus(request):
