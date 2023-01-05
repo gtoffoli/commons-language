@@ -264,8 +264,9 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
     language = doc.lang_
 
     ret = {'doc': doc_to_json(doc, language), 'language': language}
-    paragraphs = add_paragraph_spans(doc)
-    ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
+    # paragraphs = add_paragraph_spans(doc)
+    # ret['paragraphs'] = [[i, span.text, span.start, span.end] for i, span in enumerate(doc.spans['PARA'])]
+    add_paragraph_spans(doc)
 
     if not keys or 'text' in keys:
         ret['text'] = text
@@ -377,11 +378,13 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         ret['noun_chunks'] = noun_chunks
 
     if 'text_cohesion' in keys:
-        ret['cohesion_by_similarity'] = local_cohesion_by_similarity(doc)
-        local_cohesion, repeated_lemmas = local_cohesion_by_repetitions(doc)
+        paragraphs = [{'i': i, 'text': span.text, 'start': span.start, 'end': span.end} for i, span in enumerate(doc.spans['PARA'])]
+        ret['cohesion_by_similarity'] = local_cohesion_by_similarity(doc, paragraphs=paragraphs)
+        local_cohesion, repeated_lemmas = local_cohesion_by_repetitions(doc, paragraphs=paragraphs)
         ret['cohesion_by_repetitions'] = local_cohesion
         ret['repeated_lemmas'] = sorted(repeated_lemmas.items(), key=lambda x: x[1], reverse=True)
         ret['cohesion_by_entity_graph'] = local_cohesion_by_entity_graph(doc)
+        ret['paragraphs'] = paragraphs
 
     return ret
 
@@ -474,7 +477,7 @@ def compare_docs(doc_dicts):
     ret = {'n_docs': len(doc_dicts), 'similarity': similarities[0]}
     return ret
 
-def local_cohesion_by_similarity(doc, distance=3):
+def local_cohesion_by_similarity(doc, paragraphs=None, distance=3):
     """ describe local cohesion of a doc as a list of similarity scores
         computed by spaCy between contiguous or neighbouring sentences;
         the underlying model is highly related to collocations """
@@ -502,9 +505,12 @@ def local_cohesion_by_similarity(doc, distance=3):
     # return [0] + local_cohesion
     return [mean_cohesion] + local_cohesion
 
-def local_cohesion_by_repetitions(doc, distance=3):
-    """ describe local cohesion of a doc as a list of frequencies of lemmas
-        repeated between contiguous or neighbouring sentences;
+def local_cohesion_by_repetitions(doc, paragraphs=None, distance=3):
+    """ describes local cohesion of a doc as a list of frequencies of lemmas
+        repeated between contiguous or neighboring sentences;
+        paragraph weight is inversely proportional to distance;
+        a first normalization effect aims to bring values below 1;
+        further heuristic normalization aims to avoid too small values; 
         this algorithm could be improved by taking into account synonyms
         and other semantic relationship between words """
     assert distance >= 1
@@ -515,29 +521,32 @@ def local_cohesion_by_repetitions(doc, distance=3):
     repeated_lemmas = defaultdict(int)
     if n_paras >= 2:
         lemmas_list = []
+        count_list = []
         for para in paras:
             lemmas = set()
             for token in para:
                 if token.pos_ in ['NOUN', 'PROPN',]:
                     lemmas.add(token.lemma_)
             lemmas_list.append(lemmas)
+            count_list.append(len(lemmas))
         cohesion_sum = 0
         for i in range(1, n_paras):
             n_repetitions = 0
             window = range(min(i, distance))
-            weight = 0
             for j in window:
                 dist = j+1
                 repeated = lemmas_list[i].intersection(lemmas_list[i-dist])
                 n_repetitions += len(repeated)/dist
-                weight += 1/dist
+                if n_repetitions:
+                    weighted_repetitions = n_repetitions / min(count_list[i], count_list[i-dist])
+                    normalized_repetitions = math.pow(weighted_repetitions, 1/3)
                 for lemma in repeated:
                     repeated_lemmas[lemma] += 1
-            # n_repetitions /= len(window)
-            n_repetitions /= weight
-            local_cohesion.append(n_repetitions)
-            cohesion_sum += n_repetitions
+            local_cohesion.append(normalized_repetitions)
+            cohesion_sum += weighted_repetitions
         mean_cohesion = cohesion_sum / (n_paras-1)
+        if mean_cohesion:
+            mean_cohesion = math.pow(mean_cohesion, 1/3)
     return [mean_cohesion] + local_cohesion, repeated_lemmas
 
 def local_cohesion_by_entity_graph(doc):
