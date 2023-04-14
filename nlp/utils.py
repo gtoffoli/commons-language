@@ -2,6 +2,7 @@ import os
 import math
 from pathlib import Path
 import time
+import json
 import glob
 import tempfile
 from subprocess import check_output
@@ -23,6 +24,7 @@ except:
     def _init_doc(doc):
         return doc
 from nlp.entity_grid import EntityGrid, get_local_coherence
+from nlp.babelnet_annotator import BabelnetAnnotator
 
 def text_to_list(text):
     if not text:
@@ -676,6 +678,24 @@ def get_docbin(file_key=None, user_key=None, language='??'):
         file_key, docbin = make_docbin(user_key, language=language)
     return file_key, docbin
 
+def load_docbin_domains(file_key):
+    """ reads a list of domain strings from a json file associated to a docbin spacy file """
+    domains = []
+    path = path_from_file_key(file_key).replace('.spacy', '.json')
+    if os.path.exists(path):
+        f = open(path)
+        domains = json.load(f)
+        f.close()
+    return domains
+
+def save_docbin_domains(file_key, domains):
+    """ writes a list of domain strings to a json file associated to a docbin spacy file """
+    data = json.dumps(domains)
+    path = path_from_file_key(file_key).replace('.spacy', '.json')
+    f = open(path, 'w')
+    f.write(data)
+    f.close
+
 def removefrom_docbin(file_key, obj_type, obj_id):
     file_key, docbin = get_docbin(file_key=file_key)
     language = language_from_file_key(file_key)
@@ -710,7 +730,12 @@ def get_docbin_summary(docbin, language):
     return summary 
 
 def delete_docbin(file_key):
+    """ delete a .spacy file (saved docbin)
+        and, if it exists, the associated .json file (saved domains list) """
     path = path_from_file_key(file_key)
+    if os.path.exists(path):
+        os.remove(path)
+    path = path.replace('.spacy', '.json')
     if os.path.exists(path):
         os.remove(path)
 

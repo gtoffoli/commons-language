@@ -11,8 +11,10 @@ from .utils import analyze_doc, visualize_text # , analyze_text
 from .utils import text_to_list, text_to_doc, get_doc_attributes #, compare_docs
 from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
 from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
+from .utils import load_docbin_domains, save_docbin_domains
 from .utils import get_docs, doc_to_json
 from .utils import language_from_file_key, get_sorted_keywords, compare_docbin
+from .babelnet_annotator import BabelnetAnnotator
 
 if settings.ALLOW_URL_IMPORTS:
     import requests
@@ -284,6 +286,11 @@ def add_doc(request):
     doc._.url = data['url']
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
+    domains = load_docbin_domains(file_key)
+    if domains:
+        model = settings.LANGUAGE_MODELS[doc.lang_]
+        annotator = BabelnetAnnotator(model, domains)
+        doc = annotator(doc)
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
@@ -303,6 +310,29 @@ def remove_doc(request):
     result = {'index': index}
     return JsonResponse(result)
 
+"""
+@csrf_exempt
+def get_domains(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    data = json.loads(request.body.decode('utf-8'))
+    file_key = data.get('file_key', None)
+    domains = load_docbin_domains(file_key)
+    result = {'domains': domains}
+    return JsonResponse(result)
+"""
+
+@csrf_exempt
+def update_domains(request):
+    if not request.method == 'POST':
+        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
+    data = json.loads(request.body.decode('utf-8'))
+    file_key = data.get('file_key', None)
+    domains = data.get('domains', [])
+    save_docbin_domains(file_key, domains)
+    result = {'file_key': file_key}
+    return JsonResponse(result)
+
 @csrf_exempt
 def get_corpora(request):
     if not request.method == 'POST':
@@ -314,7 +344,10 @@ def get_corpora(request):
     if user_key:
         for file_key, docbin, time_stamp in get_principal_docbins(user_key=user_key, project_key=project_key):
             language = language_from_file_key(file_key)
-            corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': get_docbin_summary(docbin, language)})
+            domains = load_docbin_domains(file_key)
+            items = get_docbin_summary(docbin, language)
+            # corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': get_docbin_summary(docbin, language)})
+            corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'domains': domains, 'items': items})
     return JsonResponse({'corpora': corpora})
 
 @csrf_exempt
