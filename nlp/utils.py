@@ -24,7 +24,6 @@ except:
     def _init_doc(doc):
         return doc
 from nlp.entity_grid import EntityGrid, get_local_coherence
-from nlp.babelnet_annotator import BabelnetAnnotator
 
 def text_to_list(text):
     if not text:

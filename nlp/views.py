@@ -14,7 +14,6 @@ from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
 from .utils import load_docbin_domains, save_docbin_domains
 from .utils import get_docs, doc_to_json
 from .utils import language_from_file_key, get_sorted_keywords, compare_docbin
-from .babelnet_annotator import BabelnetAnnotator
 
 if settings.ALLOW_URL_IMPORTS:
     import requests
@@ -288,9 +287,13 @@ def add_doc(request):
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
     domains = load_docbin_domains(file_key)
     if domains:
-        model = settings.LANGUAGE_MODELS[doc.lang_]
-        annotator = BabelnetAnnotator(model, domains)
-        doc = annotator(doc)
+        try:
+            from .babelnet_annotator import BabelnetAnnotator
+            model = settings.LANGUAGE_MODELS[doc.lang_]
+            annotator = BabelnetAnnotator(model, domains)
+            doc = annotator(doc)
+        except:
+            pass
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
