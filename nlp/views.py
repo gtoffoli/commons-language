@@ -278,6 +278,7 @@ def add_doc(request):
     file_key = data.get('file_key', None)
     index = data.get('index', None)
     text = data['text']
+    no_domains = data['no_domains']
     doc = text_to_doc(text)
     doc._.label = data['label']
     doc._.obj_type = data['obj_type']
@@ -286,13 +287,12 @@ def add_doc(request):
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
     domains = load_docbin_domains(file_key)
-    if domains:
-        try:
+    # if domains:
+    if domains and not no_domains:
             from .babelnet_annotator import BabelnetAnnotator
             model = settings.LANGUAGE_MODELS[doc.lang_]
             annotator = BabelnetAnnotator(model, domains)
             doc = annotator(doc)
-        except:
             pass
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
@@ -313,7 +313,6 @@ def remove_doc(request):
     result = {'index': index}
     return JsonResponse(result)
 
-"""
 @csrf_exempt
 def get_domains(request):
     if not request.method == 'POST':
@@ -323,7 +322,6 @@ def get_domains(request):
     domains = load_docbin_domains(file_key)
     result = {'domains': domains}
     return JsonResponse(result)
-"""
 
 @csrf_exempt
 def update_domains(request):

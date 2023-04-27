@@ -11,7 +11,7 @@ from collections import defaultdict
 from django.conf import settings
 # import spacy 
 from spacy import displacy
-from spacy.tokens import Doc, DocBin, Span
+from spacy.tokens import Doc, DocBin, Token, Span
 from spacy.attrs import ORTH
 # from gensim.summarization import summarize
 import pandas as pd
@@ -121,6 +121,10 @@ def doc_to_json(doc, language):
     for token_data in json['tokens']:
         start_dict[token_data['start']] = token_data
     # augment each token in json with additional attributes
+    try:
+        Token.set_extension('babelnet', default=None, force=True)
+    except:
+        pass
     for token in doc:
         token_data = start_dict[token.idx]
         token_data['stop'] = token.is_stop
@@ -130,6 +134,7 @@ def doc_to_json(doc, language):
         token_data['email'] = token.like_email
         token_data['url'] = token.like_url
         token_data['text'] = token.text
+        token_data['babelnet'] = token._.get('babelnet')
     return json # keys: ['text', 'ents', 'sents', 'tokens', 'language'])
 
 # as a side-effect, extends the language model
