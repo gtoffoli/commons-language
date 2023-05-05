@@ -11,7 +11,7 @@ from .utils import analyze_doc, visualize_text # , analyze_text
 from .utils import text_to_list, text_to_doc, get_doc_attributes #, compare_docs
 from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
 from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
-from .utils import load_docbin_domains, save_docbin_domains
+# from .utils import load_docbin_domains, save_docbin_domains
 from .utils import get_docs, doc_to_json
 from .utils import language_from_file_key, get_sorted_keywords, compare_docbin
 
@@ -278,7 +278,7 @@ def add_doc(request):
     file_key = data.get('file_key', None)
     index = data.get('index', None)
     text = data['text']
-    no_domains = data['no_domains']
+    # no_domains = data['no_domains']
     doc = text_to_doc(text)
     doc._.label = data['label']
     doc._.obj_type = data['obj_type']
@@ -286,9 +286,10 @@ def add_doc(request):
     doc._.url = data['url']
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
-    domains = load_docbin_domains(file_key)
+    # domains = load_docbins(file_key)
     # if domains:
-    if domains and not no_domains:
+    domains = data.get('domains', None)
+    if domains: # and not no_domains:
             from .babelnet_annotator import BabelnetAnnotator
             model = settings.LANGUAGE_MODELS[doc.lang_]
             annotator = BabelnetAnnotator(model, domains)
@@ -313,6 +314,7 @@ def remove_doc(request):
     result = {'index': index}
     return JsonResponse(result)
 
+"""
 @csrf_exempt
 def get_domains(request):
     if not request.method == 'POST':
@@ -333,6 +335,7 @@ def update_domains(request):
     save_docbin_domains(file_key, domains)
     result = {'file_key': file_key}
     return JsonResponse(result)
+"""
 
 @csrf_exempt
 def get_corpora(request):
@@ -345,10 +348,11 @@ def get_corpora(request):
     if user_key:
         for file_key, docbin, time_stamp in get_principal_docbins(user_key=user_key, project_key=project_key):
             language = language_from_file_key(file_key)
-            domains = load_docbin_domains(file_key)
+            # domains = load_docbin_domains(file_key)
             items = get_docbin_summary(docbin, language)
-            # corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': get_docbin_summary(docbin, language)})
-            corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'domains': domains, 'items': items})
+            ## corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': get_docbin_summary(docbin, language)})
+            # corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'domains': domains, 'items': items})
+            corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': items})
     return JsonResponse({'corpora': corpora})
 
 @csrf_exempt

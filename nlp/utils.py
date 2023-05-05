@@ -581,14 +581,14 @@ def file_key_from_path(path):
     return Path(path).stem
 
 def path_from_file_key(file_key):
-    return os.path.join(settings.TEMP_ROOT, file_key)+'.spacy'
+    return os.path.join(settings.CORPORA, file_key)+'.spacy'
 
 def get_principal_docbins(user_key=None, project_key=None):
     if user_key:
         file_key_pattern = file_key_from_principal_key(principal_key=user_key, principal_type='u')
     elif project_key:
         file_key_pattern = file_key_from_principal_key(principal_key=project_key, principal_type='p')
-    path_pattern = os.path.join(settings.TEMP_ROOT, file_key_pattern)+'.spacy'
+    path_pattern = os.path.join(settings.CORPORA, file_key_pattern)+'.spacy'
     principal_docbins = []
     for path in glob.glob(path_pattern):
         file_key = file_key_from_path(path)
@@ -599,7 +599,7 @@ def get_principal_docbins(user_key=None, project_key=None):
     return principal_docbins
         
 def make_serial(user_key, language='??'):
-    before_serial = os.path.join(settings.TEMP_ROOT, 'u_{user_key}_'.format(user_key=user_key))
+    before_serial = os.path.join(settings.CORPORA, 'u_{user_key}_'.format(user_key=user_key))
     after_serial = '_??.spacy'
     path_pattern = before_serial+'*'+after_serial
     path_names = glob.glob(path_pattern)
@@ -636,7 +636,7 @@ def addto_docbin(docbin, doc, file_key, index=None):
         print('doc added')
         language = doc.lang_
         file_key = file_key[:-2] + language
-        new_path = os.path.join(settings.TEMP_ROOT, file_key)+'.spacy'
+        new_path = os.path.join(settings.CORPORA, file_key)+'.spacy'
         os.rename(path, new_path)
         path = new_path
         print('file_key changed to', file_key)
@@ -682,8 +682,9 @@ def get_docbin(file_key=None, user_key=None, language='??'):
         file_key, docbin = make_docbin(user_key, language=language)
     return file_key, docbin
 
+"""
 def load_docbin_domains(file_key):
-    """ reads a list of domain strings from a json file associated to a docbin spacy file """
+    # reads a list of domain strings from a json file associated to a docbin spacy file
     domains = []
     path = path_from_file_key(file_key).replace('.spacy', '.json')
     if os.path.exists(path):
@@ -693,12 +694,13 @@ def load_docbin_domains(file_key):
     return domains
 
 def save_docbin_domains(file_key, domains):
-    """ writes a list of domain strings to a json file associated to a docbin spacy file """
+    # writes a list of domain strings to a json file associated to a docbin spacy file
     data = json.dumps(domains)
     path = path_from_file_key(file_key).replace('.spacy', '.json')
     f = open(path, 'w')
     f.write(data)
     f.close
+"""
 
 def removefrom_docbin(file_key, obj_type, obj_id):
     file_key, docbin = get_docbin(file_key=file_key)
@@ -735,13 +737,15 @@ def get_docbin_summary(docbin, language):
 
 def delete_docbin(file_key):
     """ delete a .spacy file (saved docbin)
-        and, if it exists, the associated .json file (saved domains list) """
+        # and, if it exists, the associated .json file (saved domains list) """
     path = path_from_file_key(file_key)
     if os.path.exists(path):
         os.remove(path)
+    """
     path = path.replace('.spacy', '.json')
     if os.path.exists(path):
         os.remove(path)
+    """
 
 def compare_docbin(docbin, language='en'):
     model = settings.LANGUAGE_MODELS[language]
