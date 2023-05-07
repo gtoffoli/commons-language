@@ -4,8 +4,9 @@
 from operator import itemgetter
 import json
 
-from spacy.tokens.doc      import Doc
-from spacy.tokens.token    import Token
+from spacy.tokens.doc import Doc
+from spacy.tokens.token import Token
+from spacy.tokens import Span
 
 import babelnet as bn
 from babelnet.pos import POS
@@ -23,24 +24,32 @@ HIGH_QUALITY = 1
 from django.conf import settings
 
 class BabelnetAnnotator:
-    __FIELD = 'babelnet'
 
     def __init__(self, nlp, domains=[]):
-        Token.set_extension(BabelnetAnnotator.__FIELD, default=None, force=True)
+        # Token.set_extension(BabelnetAnnotator.__FIELD, default=None, force=True)
+        Span.set_extension('babelnet', default=None, force=True)
         self.__bn_lang = bn.language.Language.from_iso(nlp.lang)
         self.__bn_domains = set([BabelDomain[d] for d in domains])
 
     def __call__(self, doc: Doc):
+        spans = []
+        start = 0
+        end = 0
         for token in doc:
             babelnet = Babelnet(token=token, lang=self.__bn_lang, domains=self.__bn_domains)
-            # token._.set(BabelnetAnnotator.__FIELD, babelnet)
             annotation = [
                 [s.id.id, s.main_gloss().gloss, s.main_sense().source.source_name, \
                  sorted([[k.domain_string, v] for k,v in s.domains.items()], key=itemgetter(1), reverse=True)] \
                 for s in babelnet.synsets()]
             if settings.DEBUG:
                 print('---', token, annotation)
-            token._.set(BabelnetAnnotator.__FIELD, annotation)
+            # token._.set(BabelnetAnnotator.__FIELD, annotation)
+            if annotation:
+                span = Span(doc, token.i, token.i+1)
+                span._.set('babelnet', annotation)
+                spans.append(span)
+        if spans:
+            doc.spans['BABELNET'] = spans
         return doc
 
 class Babelnet():

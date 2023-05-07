@@ -121,10 +121,12 @@ def doc_to_json(doc, language):
     for token_data in json['tokens']:
         start_dict[token_data['start']] = token_data
     # augment each token in json with additional attributes
+    """
     try:
         Token.set_extension('babelnet', default=None, force=True)
     except:
         pass
+    """
     for token in doc:
         token_data = start_dict[token.idx]
         token_data['stop'] = token.is_stop
@@ -134,7 +136,7 @@ def doc_to_json(doc, language):
         token_data['email'] = token.like_email
         token_data['url'] = token.like_url
         token_data['text'] = token.text
-        token_data['babelnet'] = token._.get('babelnet')
+        # token_data['babelnet'] = token._.get('babelnet')
     return json # keys: ['text', 'ents', 'sents', 'tokens', 'language'])
 
 # as a side-effect, extends the language model
@@ -389,6 +391,13 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
         ret['repeated_lemmas'] = sorted(repeated_lemmas.items(), key=lambda x: x[1], reverse=True)
         ret['cohesion_by_entity_graph'] = local_cohesion_by_entity_graph(doc)
         ret['paragraphs'] = [{'i': i, 'text': span.text, 'start': span.start, 'end': span.end} for i, span in enumerate(paragraphs)]
+
+    if not keys or 'entities' in keys:
+        # serialize BabelNet annotations
+        terms = doc.spans.get('BABELNET', [])
+        if terms:
+            Span.set_extension('babelnet', default=None, force=True)
+            ret['terms'] = [{'i': i, 'babelnet': span._.babelnet, 'start': span.start, 'end': span.end} for i, span in enumerate(terms)]
 
     return ret
 

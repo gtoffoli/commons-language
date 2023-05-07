@@ -278,7 +278,6 @@ def add_doc(request):
     file_key = data.get('file_key', None)
     index = data.get('index', None)
     text = data['text']
-    # no_domains = data['no_domains']
     doc = text_to_doc(text)
     doc._.label = data['label']
     doc._.obj_type = data['obj_type']
@@ -286,10 +285,8 @@ def add_doc(request):
     doc._.url = data['url']
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
-    # domains = load_docbins(file_key)
-    # if domains:
     domains = data.get('domains', None)
-    if domains: # and not no_domains:
+    if domains:
             from .babelnet_annotator import BabelnetAnnotator
             model = settings.LANGUAGE_MODELS[doc.lang_]
             annotator = BabelnetAnnotator(model, domains)
