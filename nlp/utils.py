@@ -394,10 +394,10 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
 
     if not keys or 'entities' in keys:
         # serialize BabelNet annotations
-        terms = doc.spans.get('BABELNET', [])
-        if terms:
+        bn_terms = doc.spans.get('BABELNET', [])
+        if bn_terms:
             Span.set_extension('babelnet', default=None, force=True)
-            ret['terms'] = [{'i': i, 'babelnet': span._.babelnet, 'start': span.start, 'end': span.end} for i, span in enumerate(terms)]
+            ret['bn_terms'] = [{'i': i, 'babelnet': span._.babelnet, 'start': span.start, 'end': span.end} for i, span in enumerate(bn_terms)]
 
     return ret
 
