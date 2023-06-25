@@ -263,7 +263,7 @@ def add_paragraph_spans(doc):
     doc.spans['PARA'] = spans
     return spans
 
-def analyze_doc(doc=None, text='', keys=[], return_text=True):
+def analyze_doc(doc=None, text='', glossary=[], keys=[], return_text=True):
     assert doc or text
     if doc:
         text = doc.text
@@ -399,6 +399,19 @@ def analyze_doc(doc=None, text='', keys=[], return_text=True):
             Span.set_extension('babelnet', default=None, force=True)
             ret['bn_terms'] = [{'i': i, 'babelnet': span._.babelnet, 'start': span.start, 'end': span.end} for i, span in enumerate(bn_terms)]
 
+    if glossary:
+        # serialize annotations with glossary terms
+        from .terms_annotator import TermsAnnotator
+        model = settings.LANGUAGE_MODELS[language]
+        annotator = TermsAnnotator(model, glossary)
+        doc = annotator(doc)
+        spans = doc.spans.get('GLOSSARY', [])
+        if spans:
+            glossary_matches = []
+            for span in spans:
+                glossary_matches.append({'concept_id': doc.vocab.strings[span.label], 'start': span.start, 'end': span.end})
+            ret['glossary_matches'] = glossary_matches
+ 
     return ret
 
 def get_sorted_keywords(language=None, doc=None, docs=[], text=None):

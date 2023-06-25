@@ -94,14 +94,15 @@ def analyze(request):
         Input parameters in the request body: file_key, obj_type, obj_id, concatenate;
         they are all optional but the first three cannot be all missing;
         obj_type and obj_id make sense only in pairs;
-        concatenate (False/True) makes sense if file_key identify a ultiple-Soc spaCy Docbin.
+        concatenate (False/True) makes sense if file_key identify a multiple-doc spaCy Docbin.
         Output: a json object in the body of the POST response.
     """
     if request.method == 'POST':
-        # doc = list(docs(request, return_json=False))[0]
-        doc = make_docs(request, return_json=False)
+        # doc = make_docs(request, return_json=False)
+        doc, glossary = make_docs(request, return_json=False)
         language = doc.lang_
-        ret = analyze_doc(text='', doc=doc)
+        # ret = analyze_doc(text='', doc=doc)
+        ret = analyze_doc(text='', doc=doc, glossary=glossary)
         analyzed_text = ret.get('analyzed_text', '')
         if analyzed_text:
             ret['text'] = analyzed_text
@@ -132,6 +133,7 @@ def make_docs(request, return_json=True):
         file_key = data.get('file_key', '')
         obj_type = data.get('obj_type', '')
         obj_id = data.get('obj_id', '')
+        glossary = data.get('glossary', [])
         if file_key:
             language = language_from_file_key(file_key)
             file_key, docbin = get_docbin(file_key=file_key)
@@ -154,7 +156,8 @@ def make_docs(request, return_json=True):
                     doc = Doc.from_docs(docs)
                 else:
                     doc = docs[0]
-                return doc # return a doc internally
+                # return doc # return a doc internally
+                return doc, glossary # return a doc internally
         else:
             if settings.ALLOW_URL_IMPORTS and text.startswith(('http://', 'https://', 'www')):
                 page = requests.get(text)
@@ -174,8 +177,8 @@ def make_docs(request, return_json=True):
                 data = [text_to_doc(text, return_json=True)]
                 return JsonResponse(data) # return list with 1 doc as json on API
             else:
-                # return [text_to_doc(text)] # return list with 1 doc internally
-                return text_to_doc(text)
+                # return text_to_doc(text)
+                return text_to_doc(text), glossary
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
@@ -210,7 +213,8 @@ def text_cohesion(request):
         Output: .
     """
     if request.method == 'POST':
-        doc = make_docs(request, return_json=False)
+        # doc = make_docs(request, return_json=False)
+        doc, glossary = make_docs(request, return_json=False)
         language = doc.lang_
         ret = analyze_doc(text='', doc=doc, keys=['sentences', 'text_cohesion',])
         analyzed_text = ret.get('analyzed_text', '')
@@ -227,7 +231,8 @@ def word_contexts(request):
     MIN_CONTEXTS = 3
     CONTEXT_SIZE = 5
     from tmtoolkit.corpus import Corpus as tm_Corpus, kwic
-    doc = make_docs(request, return_json=False)
+    # doc = make_docs(request, return_json=False)
+    doc, glossary = make_docs(request, return_json=False)
     language = doc.lang_
     docs = [doc]
     
@@ -291,7 +296,12 @@ def add_doc(request):
             model = settings.LANGUAGE_MODELS[doc.lang_]
             annotator = BabelnetAnnotator(model, domains)
             doc = annotator(doc)
-            pass
+    glossary = data.get('glossary', None)
+    if glossary:
+            from .terms_annotator import TermsAnnotator
+            model = settings.LANGUAGE_MODELS[doc.lang_]
+            annotator = TermsAnnotator(model, glossary)
+            doc = annotator(doc)
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
