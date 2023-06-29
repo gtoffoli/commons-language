@@ -95,38 +95,39 @@ class BabelnetAnnotator():
                 synsets = self.cached_synsets[key]
             else:
                 synsets = []
-                span = Span(self.doc, start, end)
-                filter = { 'words': [span.text], 'poses': [spacy2babelnet_pos(pos)], 'from_langs': [self.bn_lang]}
-                if not span.text.startswith(span[0].lemma_):
-                    filter['words'].append(span.text.replace(span[0].text, span[0].lemma_, 1))
-                if  settings.DEBUG:
-                    print('filter = ', filter)
-                synsets_1 = self.api._get_synsets(**filter)
-                self.requests += 1
-                if  settings.DEBUG:
-                    print('+', self.requests, filter['words'])
-                if synsets_1 and settings.DEBUG:
-                    print('+ unfiltered:', [[s.id, s] for s in synsets_1])
-                synsets_2 = [ s for s in synsets_1 if set(s.domains).intersection(self.bn_domains) ]
-                if synsets_2 and settings.DEBUG:
-                    print('+ filtered by domain:', [[s.id, s] for s in synsets_2])
-                for s in synsets_2:
-                    s_ok = False
-                    lemma_objects = s.lemmas(self.bn_lang)
-                    for lo in lemma_objects:
-                        if lo.lemma_type == BabelLemmaType.HIGH_QUALITY and \
-                           ((pos == 'NOUN' and s.type == SynsetType.CONCEPT) or \
-                            (pos == 'PROPN' and s.type == SynsetType.NAMED_ENTITY \
-                                              and not s.main_sense().source.is_from_wikipedia)) \
-                           and domains_ok(s):
-                            s_ok = True
-                            break
-                    if s_ok:
-                        synsets.append(s)
-                if synsets:
-                    spans.append([span, synsets])
-                    self.cached_synsets[key] = synsets
-                    break
+                if spacy2babelnet_pos(pos):
+                    span = Span(self.doc, start, end)
+                    filter = { 'words': [span.text], 'poses': [spacy2babelnet_pos(pos)], 'from_langs': [self.bn_lang]}
+                    if not span.text.startswith(span[0].lemma_):
+                        filter['words'].append(span.text.replace(span[0].text, span[0].lemma_, 1))
+                    if  settings.DEBUG:
+                        print('filter = ', filter)
+                    synsets_1 = self.api._get_synsets(**filter)
+                    self.requests += 1
+                    if  settings.DEBUG:
+                        print('+', self.requests, filter['words'])
+                    if synsets_1 and settings.DEBUG:
+                        print('+ unfiltered:', [[s.id, s] for s in synsets_1])
+                    synsets_2 = [ s for s in synsets_1 if set(s.domains).intersection(self.bn_domains) ]
+                    if synsets_2 and settings.DEBUG:
+                        print('+ filtered by domain:', [[s.id, s] for s in synsets_2])
+                    for s in synsets_2:
+                        s_ok = False
+                        lemma_objects = s.lemmas(self.bn_lang)
+                        for lo in lemma_objects:
+                            if lo.lemma_type == BabelLemmaType.HIGH_QUALITY and \
+                               ((pos == 'NOUN' and s.type == SynsetType.CONCEPT) or \
+                                (pos == 'PROPN' and s.type == SynsetType.NAMED_ENTITY \
+                                                  and not s.main_sense().source.is_from_wikipedia)) \
+                               and domains_ok(s):
+                                s_ok = True
+                                break
+                        if s_ok:
+                            synsets.append(s)
+                    if synsets:
+                        spans.append([span, synsets])
+                        self.cached_synsets[key] = synsets
+                        break
                 self.cached_synsets[key] = []
             start += 1
         return spans
@@ -141,6 +142,8 @@ class BabelnetAnnotator():
         if key in self.cached_synsets:
             synsets = self.cached_synsets[key]
         else:
+            if not spacy2babelnet_pos(pos):
+                return []
             filter = { 'words': words, 'poses': [spacy2babelnet_pos(pos)], 'from_langs': [self.bn_lang]}
             synsets_1 = self.api._get_synsets(**filter)
             self.requests += 1

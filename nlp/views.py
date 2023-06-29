@@ -296,12 +296,13 @@ def add_doc(request):
             model = settings.LANGUAGE_MODELS[doc.lang_]
             annotator = BabelnetAnnotator(model, domains)
             doc = annotator(doc)
-    glossary = data.get('glossary', None)
-    if glossary:
+    glossaries = data.get('glossaries', None)
+    if glossaries:
             from .terms_annotator import TermsAnnotator
             model = settings.LANGUAGE_MODELS[doc.lang_]
-            annotator = TermsAnnotator(model, glossary)
-            doc = annotator(doc)
+            for glossary in glossaries:
+                annotator = TermsAnnotator(model, glossary)
+                doc = annotator(doc)
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
