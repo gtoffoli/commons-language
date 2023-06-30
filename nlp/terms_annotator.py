@@ -8,10 +8,11 @@ from spacy.matcher import Matcher
 
 class TermsAnnotator():
 
-    def __init__(self, model, glossary):
+    def __init__(self, model, glossary_concepts):
+        print()
         self.model = model
         self.matcher = Matcher(model.vocab)
-        for concept_id, lang_dict in glossary:
+        for concept_id, lang_dict in glossary_concepts:
             terms = lang_dict[model.lang]
             self.matcher.add(concept_id, [self.term_to_pattern(term) for term in terms])
          # Span.set_extension('terms', default=None, force=True)

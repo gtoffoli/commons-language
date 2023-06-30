@@ -356,10 +356,7 @@ def get_corpora(request):
     if user_key:
         for file_key, docbin, time_stamp in get_principal_docbins(user_key=user_key, project_key=project_key):
             language = language_from_file_key(file_key)
-            # domains = load_docbin_domains(file_key)
             items = get_docbin_summary(docbin, language)
-            ## corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': get_docbin_summary(docbin, language)})
-            # corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'domains': domains, 'items': items})
             corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': items})
     return JsonResponse({'corpora': corpora})
 

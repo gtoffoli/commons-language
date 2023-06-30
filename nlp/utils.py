@@ -392,25 +392,27 @@ def analyze_doc(doc=None, text='', glossary=[], keys=[], return_text=True):
         ret['cohesion_by_entity_graph'] = local_cohesion_by_entity_graph(doc)
         ret['paragraphs'] = [{'i': i, 'text': span.text, 'start': span.start, 'end': span.end} for i, span in enumerate(paragraphs)]
 
-    if not keys or 'entities' in keys:
-        # serialize BabelNet annotations
-        bn_terms = doc.spans.get('BABELNET', [])
-        if bn_terms:
-            Span.set_extension('babelnet', default=None, force=True)
-            ret['bn_terms'] = [{'i': i, 'babelnet': span._.babelnet, 'start': span.start, 'end': span.end} for i, span in enumerate(bn_terms)]
-
     if glossary:
         # serialize annotations with glossary terms
         from .terms_annotator import TermsAnnotator
         model = settings.LANGUAGE_MODELS[language]
         annotator = TermsAnnotator(model, glossary)
         doc = annotator(doc)
+
+    if not keys or 'noun_chunks' in keys:
         spans = doc.spans.get('GLOSSARY', [])
         if spans:
             glossary_matches = []
             for span in spans:
                 glossary_matches.append({'concept_id': doc.vocab.strings[span.label], 'start': span.start, 'end': span.end})
             ret['glossary_matches'] = glossary_matches
+
+    if not keys or 'entities' in keys:
+        # serialize BabelNet annotations
+        bn_terms = doc.spans.get('BABELNET', [])
+        if bn_terms:
+            Span.set_extension('babelnet', default=None, force=True)
+            ret['bn_terms'] = [{'i': i, 'babelnet': span._.babelnet, 'start': span.start, 'end': span.end} for i, span in enumerate(bn_terms)]
  
     return ret
 
