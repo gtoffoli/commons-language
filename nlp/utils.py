@@ -612,6 +612,8 @@ def get_principal_docbins(user_key=None, project_key=None):
         file_key_pattern = file_key_from_principal_key(principal_key=user_key, principal_type='u')
     elif project_key:
         file_key_pattern = file_key_from_principal_key(principal_key=project_key, principal_type='p')
+    else:
+        file_key_pattern = file_key_from_principal_key(principal_key='?????', principal_type='u')
     path_pattern = os.path.join(settings.CORPORA, file_key_pattern)+'.spacy'
     principal_docbins = []
     for path in glob.glob(path_pattern):

@@ -350,14 +350,14 @@ def get_corpora(request):
     if not request.method == 'POST':
         return JsonResponse({'status': 'false', 'message': 'invalid method!'})
     data = json.loads(request.body.decode('utf-8'))
-    user_key = data['user_key']
+    user_key = data.get('user_key', None)
     project_key = data.get('project_key', None)
     corpora = []
-    if user_key:
-        for file_key, docbin, time_stamp in get_principal_docbins(user_key=user_key, project_key=project_key):
-            language = language_from_file_key(file_key)
-            items = get_docbin_summary(docbin, language)
-            corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': items})
+    # if user_key:
+    for file_key, docbin, time_stamp in get_principal_docbins(user_key=user_key, project_key=project_key):
+        language = language_from_file_key(file_key)
+        items = get_docbin_summary(docbin, language)
+        corpora.append({'list_id': 'corpus', 'file_key': file_key, 'language': language, 'time_stamp': time_stamp, 'items': items})
     return JsonResponse({'corpora': corpora})
 
 @csrf_exempt
