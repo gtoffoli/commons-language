@@ -568,6 +568,9 @@ def local_cohesion_by_repetitions(doc, paragraphs=None, distance=3):
                 if n_repetitions:
                     weighted_repetitions = n_repetitions / min(count_list[i], count_list[i-dist])
                     normalized_repetitions = math.pow(weighted_repetitions, 1/3)
+                else:
+                    weighted_repetitions = 0
+                    normalized_repetitions = 0
                 for lemma in repeated:
                     repeated_lemmas[lemma] += 1
             local_cohesion.append(normalized_repetitions)
@@ -651,7 +654,8 @@ def addto_docbin(docbin, doc, file_key, index=None):
     print('index:', index)
     if index is not None:
         index = int(index)
-    assert index is None or (index >= 0 and index < n_docs)
+    # assert index is None or (index >= 0 and index < n_docs)
+    assert index is None or (index >= 0 and index <= n_docs)
     language = language_from_file_key(file_key)
     if n_docs > 0 and doc.lang_ != language:
         print('doc has unexpected language')
