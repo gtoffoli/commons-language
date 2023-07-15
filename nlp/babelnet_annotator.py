@@ -63,6 +63,8 @@ class BabelnetAnnotator():
                 continue
             if token.pos_ == 'AUX' or token.lemma_ in ['essere', 'avere',]:
                 continue
+            if len(token.text) <= 3:
+                continue
             synsets = self.token_synsets(token)
             annotation = synsets_to_annotation(synsets)
             if annotation:
@@ -83,12 +85,18 @@ class BabelnetAnnotator():
         if len(noun_chunk) == 1:
             pos = self.doc[start].pos_
         else:
+            """
             max_children = 0
             for token in noun_chunk:
                 n_children = len(list(token.children))
                 if n_children > max_children:
                     pos = token.pos_
                     max_children = n_children
+            """
+            pos = 'NOUN'
+            for token in noun_chunk:
+                if token.pos_ == 'PROPN':
+                    pos = 'PROPN'
         while start < end:
             key = '_'.join(['{}_{}'.format(self.doc[i].lemma_, self.doc[i].pos_) for i in range(start, end)])
             if key in self.cached_synsets:
@@ -101,7 +109,7 @@ class BabelnetAnnotator():
                     if not span.text.startswith(span[0].lemma_):
                         filter['words'].append(span.text.replace(span[0].text, span[0].lemma_, 1))
                     if  settings.DEBUG:
-                        print('filter = ', filter)
+                        print('pos = ', pos, 'filter = ', filter)
                     synsets_1 = self.api._get_synsets(**filter)
                     self.requests += 1
                     if  settings.DEBUG:
