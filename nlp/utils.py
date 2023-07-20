@@ -113,7 +113,6 @@ def customize_model(model):
         pass
 
 def doc_to_json(doc, language):
-    # json = doc.to_json()
     json = doc.to_json(underscore=['obj_type', 'obj_id', 'label', 'url'])
     json['language'] = language
     # create a dict of json tokens keyed by character position in doc (idx)
@@ -121,12 +120,6 @@ def doc_to_json(doc, language):
     for token_data in json['tokens']:
         start_dict[token_data['start']] = token_data
     # augment each token in json with additional attributes
-    """
-    try:
-        Token.set_extension('babelnet', default=None, force=True)
-    except:
-        pass
-    """
     for token in doc:
         token_data = start_dict[token.idx]
         token_data['stop'] = token.is_stop
@@ -136,8 +129,7 @@ def doc_to_json(doc, language):
         token_data['email'] = token.like_email
         token_data['url'] = token.like_url
         token_data['text'] = token.text
-        # token_data['babelnet'] = token._.get('babelnet')
-    return json # keys: ['text', 'ents', 'sents', 'tokens', 'language'])
+    return json # some keys: ['text', 'ents', 'sents', 'tokens', 'language'])
 
 # as a side-effect, extends the language model
 def text_to_doc(text, return_json=False, doc_key=None):
@@ -192,7 +184,8 @@ def spacy_summarize(doc, sorted_frequencies, max_frequency, limit=None):
     return summary
 
 def get_doc_attributes(doc):
-    return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH))}
+    # return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH))}
+    return {'language': doc.lang_, 'n_tokens': doc.__len__(), 'n_words': len(doc.count_by(ORTH)), 'n_synsets': len(doc.spans.get('BABELNET', [])), 'n_terms': len(doc.spans.get('GLOSSARY', []))}
 
 def predict_category(text, language):
     "Loads FastText models and predicts category"
@@ -712,26 +705,6 @@ def get_docbin(file_key=None, user_key=None, language='??'):
         file_key, docbin = make_docbin(user_key, language=language)
     return file_key, docbin
 
-"""
-def load_docbin_domains(file_key):
-    # reads a list of domain strings from a json file associated to a docbin spacy file
-    domains = []
-    path = path_from_file_key(file_key).replace('.spacy', '.json')
-    if os.path.exists(path):
-        f = open(path)
-        domains = json.load(f)
-        f.close()
-    return domains
-
-def save_docbin_domains(file_key, domains):
-    # writes a list of domain strings to a json file associated to a docbin spacy file
-    data = json.dumps(domains)
-    path = path_from_file_key(file_key).replace('.spacy', '.json')
-    f = open(path, 'w')
-    f.write(data)
-    f.close
-"""
-
 def removefrom_docbin(file_key, obj_type, obj_id):
     file_key, docbin = get_docbin(file_key=file_key)
     language = language_from_file_key(file_key)
@@ -750,6 +723,21 @@ def removefrom_docbin(file_key, obj_type, obj_id):
     docbin.to_disk(path)
     return index
 
+def replace_in_docbin(file_key, new_doc):
+    file_key, docbin = get_docbin(file_key=file_key)
+    obj_type = new_doc._.obj_type
+    obj_id = new_doc._.obj_id
+    language = language_from_file_key(file_key)
+    model = settings.LANGUAGE_MODELS[language]
+    docs = list(docbin.get_docs(model.vocab))
+    for i, doc in enumerate(docs):
+        if doc._.obj_type==obj_type and doc._.obj_id==obj_id:
+            docs = docs[:i] + [new_doc] + docs[i+1:]
+    docbin = DocBin(docs=docs, store_user_data=True)
+    path = path_from_file_key(file_key)
+    docbin.to_disk(path)
+    return docbin
+
 def get_docs(docbin, language):
     model = settings.LANGUAGE_MODELS[language]
     return docbin.get_docs(model.vocab)   
@@ -767,15 +755,10 @@ def get_docbin_summary(docbin, language):
 
 def delete_docbin(file_key):
     """ delete a .spacy file (saved docbin)
-        # and, if it exists, the associated .json file (saved domains list) """
+    """
     path = path_from_file_key(file_key)
     if os.path.exists(path):
         os.remove(path)
-    """
-    path = path.replace('.spacy', '.json')
-    if os.path.exists(path):
-        os.remove(path)
-    """
 
 def compare_docbin(docbin, language='en'):
     model = settings.LANGUAGE_MODELS[language]

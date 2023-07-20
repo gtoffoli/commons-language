@@ -10,8 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .utils import analyze_doc, visualize_text # , analyze_text
 from .utils import text_to_list, text_to_doc, get_doc_attributes #, compare_docs
 from .utils import get_principal_docbins, get_docbin, make_docbin, delete_docbin
-from .utils import addto_docbin, removefrom_docbin, get_docbin_summary
-# from .utils import load_docbin_domains, save_docbin_domains
+from .utils import addto_docbin, removefrom_docbin, replace_in_docbin, get_docbin_summary
 from .utils import get_docs, doc_to_json
 from .utils import language_from_file_key, get_sorted_keywords, compare_docbin
 
@@ -110,6 +109,17 @@ def analyze(request):
     else:
         ret = {'methods_allowed': 'POST'}
         return JsonResponse(ret)
+
+def get_docbin_doc(file_key, obj_type, obj_id):
+    """ Extract from a docbin a doc identified by type and id """
+    language = language_from_file_key(file_key)
+    file_key, docbin = get_docbin(file_key=file_key)
+    docbin_doc = None
+    for doc in get_docs(docbin, language):
+        if doc._.obj_type == obj_type and str(doc._.obj_id) == str(obj_id):
+            docbin_doc = doc
+            break
+    return docbin_doc
 
 @csrf_exempt
 def make_docs(request, return_json=True):
@@ -290,6 +300,7 @@ def add_doc(request):
     doc._.url = data['url']
     result = get_doc_attributes(doc)
     file_key, docbin = get_docbin(file_key=file_key, language=doc.lang_)
+    """
     domains = data.get('domains', None)
     if domains:
             from .babelnet_annotator import BabelnetAnnotator
@@ -303,6 +314,7 @@ def add_doc(request):
             for glossary in glossaries:
                 annotator = TermsAnnotator(model, glossary)
                 doc = annotator(doc)
+    """
     file_key, docbin = addto_docbin(docbin, doc, file_key, index=index)
     if docbin:
         result.update({'file_key': file_key})
@@ -322,28 +334,40 @@ def remove_doc(request):
     result = {'index': index}
     return JsonResponse(result)
 
-"""
 @csrf_exempt
-def get_domains(request):
+def annotate_with_terms(request):
+    """ annotate a doc inside a docbin, specified by file_key, object type and object id
+        with synsets and glossary terms provided in the request 
+    """
     if not request.method == 'POST':
         return JsonResponse({'status': 'false', 'message': 'invalid method!'})
     data = json.loads(request.body.decode('utf-8'))
-    file_key = data.get('file_key', None)
-    domains = load_docbin_domains(file_key)
-    result = {'domains': domains}
-    return JsonResponse(result)
-
-@csrf_exempt
-def update_domains(request):
-    if not request.method == 'POST':
-        return JsonResponse({'status': 'false', 'message': 'invalid method!'})
-    data = json.loads(request.body.decode('utf-8'))
-    file_key = data.get('file_key', None)
-    domains = data.get('domains', [])
-    save_docbin_domains(file_key, domains)
-    result = {'file_key': file_key}
-    return JsonResponse(result)
-"""
+    file_key = data['file_key']
+    obj_type = data['obj_type']
+    obj_id = data['obj_id']
+    docbin = get_docbin(file_key)
+    doc = get_docbin_doc(file_key, obj_type, obj_id)
+    domains = data.get('domains', None)
+    print('domains:', len(domains))
+    if domains:
+        common_nouns = data.get('common_nouns', [])
+        print('common_nouns:', len(common_nouns))
+        from .babelnet_annotator import BabelnetAnnotator
+        model = settings.LANGUAGE_MODELS[doc.lang_]
+        annotator = BabelnetAnnotator(model, domains, common_nouns=common_nouns)
+        doc = annotator(doc)
+    glossaries = data.get('glossaries', None)
+    print('glossaries:', len(glossaries))
+    if glossaries:
+        from .terms_annotator import TermsAnnotator
+        model = settings.LANGUAGE_MODELS[doc.lang_]
+        for glossary in glossaries:
+            annotator = TermsAnnotator(model, glossary)
+            doc = annotator(doc)
+    if domains or glossaries:
+        docbin = replace_in_docbin(file_key, doc)
+    data = doc_to_json(doc, doc.lang_)
+    return JsonResponse(data)
 
 @csrf_exempt
 def get_corpora(request):

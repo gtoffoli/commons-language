@@ -35,9 +35,10 @@ def extended_noun_chuncks(doc):
 
 class BabelnetAnnotator():
 
-    def __init__(self, model, domains=[]):
+    def __init__(self, model, domains=[], common_nouns=[]):
         self.bn_lang = bn.language.Language.from_iso(model.lang)
         self.bn_domains = set([BabelDomain[d] for d in domains])
+        self.common_nouns = common_nouns
         self.cached_synsets = {}
         self.spans = []
         self.requests = 0
@@ -47,6 +48,7 @@ class BabelnetAnnotator():
     def __call__(self, doc: Doc):
         self.doc = doc
 
+        # process multi-token nounchunks
         for noun_chunk in extended_noun_chuncks(doc):
             spans = self.noun_chunk_annotated_spans(noun_chunk)
             if spans:
@@ -56,15 +58,22 @@ class BabelnetAnnotator():
                         span._.set('babelnet', annotation)
                         self.spans.append(span)
 
+        # process single-token nounchunks
         for token in doc:
+            """
             if not token.pos_ in ['VERB', 'NOUN', 'PROPN', 'ADJ',]:
                 continue
             if token.pos_ == 'PRON' and (token.tag_ in ['PR'] or token.tag_.startswith('W')):
                 continue
             if token.pos_ == 'AUX' or token.lemma_ in ['essere', 'avere',]:
                 continue
+            """
+            if not token.pos_ in ['NOUN', 'PROPN',]:
+                continue
             if len(token.text) <= 3:
                 continue
+            if token.pos_ == 'NOUN' and token.lemma_ in self.common_nouns:
+                continue # to minimize the number of api calls
             synsets = self.token_synsets(token)
             annotation = synsets_to_annotation(synsets)
             if annotation:
@@ -82,21 +91,17 @@ class BabelnetAnnotator():
         spans = []
         start = noun_chunk.start
         end = noun_chunk.end
-        if len(noun_chunk) == 1:
-            pos = self.doc[start].pos_
-        else:
-            """
-            max_children = 0
-            for token in noun_chunk:
-                n_children = len(list(token.children))
-                if n_children > max_children:
-                    pos = token.pos_
-                    max_children = n_children
-            """
-            pos = 'NOUN'
-            for token in noun_chunk:
-                if token.pos_ == 'PROPN':
-                    pos = 'PROPN'
+        pos = None
+        noun_lemma = None
+        for token in noun_chunk:
+            if token.pos_ == 'PROPN':
+                pos = 'PROPN' # to match SynsetType.NAMED_ENTITY
+            elif token.pos_ == 'NOUN' and not noun_lemma:
+                noun_lemma = token.lemma_
+        if not pos == 'PROPN':
+            pos = 'NOUN' # default, to match SynsetType.CONCEPT
+            if noun_lemma and noun_lemma in self.common_nouns:
+                return [] # to minimize the number of api calls
         while start < end:
             key = '_'.join(['{}_{}'.format(self.doc[i].lemma_, self.doc[i].pos_) for i in range(start, end)])
             if key in self.cached_synsets:

@@ -16,6 +16,7 @@ urlpatterns = [
 
     url(r'^api/new_corpus/', views.new_corpus, name='nlp.views.new_corpus'),
     url(r'^api/add_doc/', views.add_doc, name='nlp.views.add_doc'),
+    url(r'^api/add_terms/', views.annotate_with_terms, name='nlp.views.annotate_with_terms'),
     url(r'^api/remove_doc/', views.remove_doc, name='nlp.views.remove_doc'),
     # url(r'^api/update_domains/', views.update_domains, name='nlp.views.update_domains'),
     # url(r'^api/get_domains/', views.get_domains, name='nlp.views.get_domains'),
