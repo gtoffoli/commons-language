@@ -559,7 +559,10 @@ def local_cohesion_by_repetitions(doc, paragraphs=None, distance=3):
                 repeated = lemmas_list[i].intersection(lemmas_list[i-dist])
                 n_repetitions += len(repeated)/dist
                 if n_repetitions:
-                    weighted_repetitions = n_repetitions / min(count_list[i], count_list[i-dist])
+                    try:
+                        weighted_repetitions = n_repetitions / min(count_list[i], count_list[i-dist])
+                    except:
+                        weighted_repetitions = 1
                     normalized_repetitions = math.pow(weighted_repetitions, 1/3)
                 else:
                     weighted_repetitions = 0
