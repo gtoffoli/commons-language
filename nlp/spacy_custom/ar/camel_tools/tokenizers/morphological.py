@@ -109,8 +109,8 @@ class MorphologicalTokenizer(object):
                     result.append(self._diacf(tok))
                 elif self._split:
                     tok = self._diacf(tok)
-                    # added test
-                    if len(tok.replace('+_', '').replace('_+', '')) == len(disambig_word.word):
+                    # added test; blocked splitting when it introduces text changes (destructive tokenization)
+                    if len(tok) >= 4 and len(tok.replace('+_', '').replace('_+', '')) == len(disambig_word.word):
                         result.extend(tok.split('_'))
                     else:
                         result.append(disambig_word.word)

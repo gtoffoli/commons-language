@@ -25,8 +25,7 @@ class MsaTokenizer:
 
     def __call__(self, text):
         self.count += 1
-        # doc = self.nlp(text)
-        doc = self.nlp(dediac_ar(text)) # is dediac_ar really needed?
+        doc = self.nlp(text)
         raw_tokens = [t.text for t in doc if t.text]
         n_raw_tokens = len(raw_tokens)
         raw_tokens_text = ''.join(raw_tokens)
@@ -103,7 +102,13 @@ class MsaTokenizer:
         morpho_doc = Doc(Vocab(), words=words, spaces=spaces)
         if False: # self.count == 6221:
             print([[token.idx, len(token.text), token.text] for token in morpho_doc])
-        print('---', self.count, len(doc.text), len(morpho_doc.text))
+        doc_text = doc.text
+        morpho_doc_text = morpho_doc.text
+        print('---', self.count, len(text), len(doc_text), len(morpho_doc_text))
+        if morpho_doc_text != text:
+            print(text)
+            print(doc_text)
+            print(morpho_doc_text)
         return morpho_doc
 
 @spacy.registry.tokenizers("msa_tokenizer")
