@@ -5,6 +5,7 @@ import re
 import spacy
 from spacy.tokens import Doc
 from spacy.vocab import Vocab
+from spacy.tokenizer import Tokenizer
  
 from .camel_tools.utils.charsets import UNICODE_LETTER_CHARSET
 from .camel_tools.utils.dediac import dediac_ar
@@ -12,10 +13,11 @@ from .camel_tools.utils.dediac import dediac_ar
 TATWEEL = u'\u0640' # 'ـ' Tatweel/Kashida character (esthetic character elongation for improved layout)
 ALEF_SUPER = u'\u0670' # ' ' Arabic Letter superscript Alef
 
-class MsaTokenizer:
+# class MsaTokenizer:
+class MsaTokenizer(Tokenizer):
 
-    def __init__(self):
-        print('--- init MsaTokenizer ---')
+    def __init__(self, vocab):
+        super(MsaTokenizer, self).__init__(vocab)
         self.count = 0
         from .camel_tools.disambig.mle import MLEDisambiguator
         from .camel_tools.tokenizers.morphological import MorphologicalTokenizer
@@ -104,7 +106,7 @@ class MsaTokenizer:
             print([[token.idx, len(token.text), token.text] for token in morpho_doc])
         doc_text = doc.text
         morpho_doc_text = morpho_doc.text
-        print('---', self.count, len(text), len(doc_text), len(morpho_doc_text))
+        # print('---', self.count, len(text), len(doc_text), len(morpho_doc_text))
         if morpho_doc_text != text:
             print(text)
             print(doc_text)
@@ -115,11 +117,9 @@ class MsaTokenizer:
 def make_msa_tokenizer():
 
     def create_msa_tokenizer(nlp):
-        return MsaTokenizer()
+        return MsaTokenizer(nlp.vocab)
 
     return create_msa_tokenizer
-
-print(spacy.registry.tokenizers.get("msa_tokenizer"))
 
 def msa_filter_pattern(in_file, out_file, pattern):
     assert in_file and pattern
