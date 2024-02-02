@@ -1,6 +1,7 @@
 *~
 .*.sw[opn]
 *.py[cod]
+*.cpp
 *.egg-info
 .DS_Store
 .cache
