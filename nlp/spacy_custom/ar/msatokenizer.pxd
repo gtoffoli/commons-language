@@ -13,4 +13,5 @@ cdef class MsaTokenizer:
     cdef readonly Vocab vocab
     cdef int count
     cdef object nlp
+    cdef object native_tokenizer
     cdef object atb_tokenizer

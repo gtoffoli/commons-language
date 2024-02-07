@@ -2,59 +2,44 @@
 # distutils: language=c++
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
-cimport cython
-
 import os
-import re
-import spacy
-# from spacy.tokens import Doc
-from spacy.vocab import Vocab
-# from spacy.tokenizer import Tokenizer
 
 from .camel_tools.utils.charsets import UNICODE_LETTER_CHARSET
-from .camel_tools.utils.dediac import dediac_ar
 from .camel_tools.disambig.mle import MLEDisambiguator
 from .camel_tools.tokenizers.morphological import MorphologicalTokenizer
 
+cimport cython
 from cymem.cymem cimport Pool
-from cython.operator cimport dereference as deref
-from cython.operator cimport preincrement as preinc
-from libc.string cimport memcpy, memset
-from libcpp.set cimport set as stdset
-from preshed.maps cimport PreshMap
 
-# import re
-from spacy.lexeme cimport EMPTY_LEXEME
-from spacy.strings cimport hash_string
+import spacy
+from spacy.vocab import Vocab
+from spacy.tokenizer import Tokenizer
 from spacy.tokens.doc cimport Doc
-
+from spacy.lang.ar import Arabic
 from spacy import util
-from spacy.attrs import intify_attrs
-from spacy.errors import Errors
 from spacy.scorer import Scorer
-from spacy.symbols import NORM, ORTH
-from spacy.tokens import Span
 from spacy.training import validate_examples
-from spacy.util import get_words_and_spaces
 
 # define and replace the Arabic tokenizer
 
 TATWEEL = u'\u0640' # 'ـ' Tatweel/Kashida character (esthetic character elongation for improved layout)
 ALEF_SUPER = u'\u0670' # ' ' Arabic Letter superscript Alef
 
-# class cdef MsaTokenizer(Tokenizer):
 cdef class MsaTokenizer:
 
-    def __init__(self, Vocab vocab):
-        self.vocab = vocab
+    def __init__(self, object nlp):
         self.count = 0
-        self.nlp = spacy.blank("ar")
+        # self.nlp = nlp
+        self.nlp = Arabic()
+        self.vocab = self.nlp.vocab
+        self.native_tokenizer = self.nlp.tokenizer
         mle_msa = MLEDisambiguator.pretrained('calima-msa-r13')
         self.atb_tokenizer = MorphologicalTokenizer(disambiguator=mle_msa, scheme='atbtok', split=True)
 
     def __call__(self, text):
         self.count += 1
-        doc = self.nlp(text)
+        doc = self.native_tokenizer(text)
+        # print([[i+1, t.text, len(t.whitespace_)] for i, t in enumerate(doc)])
         raw_tokens = [t.text for t in doc if t.text]
         n_raw_tokens = len(raw_tokens)
         raw_tokens_text = ''.join(raw_tokens)
@@ -62,7 +47,6 @@ cdef class MsaTokenizer:
         spaces = []
         morphos = self.atb_tokenizer.tokenize(raw_tokens)
         n_morphos = len(morphos)
-        tat_weel_spans = []
         i_raw = 0 # index of token in simple tokenization
         raw_token = doc[i_raw]
         raw_text = raw_token.text
@@ -70,6 +54,7 @@ cdef class MsaTokenizer:
         raw_len = len(raw_text)
         raw_space = raw_token.whitespace_
 
+        cdef Pool mem = Pool()
         morphos_chars = 0
         i_morpho = 0 # morpho index
         l_morphos = 0
@@ -87,6 +72,7 @@ cdef class MsaTokenizer:
                 print('!', morphos_chars, l_morphos, raw_len, i_raw, raw_text, morpho)
             morpho_source = raw_tokens_text[morphos_chars : morphos_chars+l_morpho]
             assert l_morpho > 0
+            self.vocab.get(mem, morpho_source)
             words.append(morpho_source)
             morphos_chars += l_morpho
             l_morphos += l_morpho
@@ -128,7 +114,7 @@ cdef class MsaTokenizer:
                 word_list.append([words_chars, len(word), word])
                 words_chars += len(word)
             print(word_list)
-        morpho_doc = Doc(Vocab(), words=words, spaces=spaces)
+        morpho_doc = Doc(self.vocab, words=words, spaces=spaces)
         if False: # self.count == 6221:
             print([[token.idx, len(token.text), token.text] for token in morpho_doc])
         doc_text = doc.text
@@ -138,20 +124,8 @@ cdef class MsaTokenizer:
             print(text)
             print(doc_text)
             print(morpho_doc_text)
+        # print([[i+1, t.text, len(t.whitespace_)] for i, t in enumerate(morpho_doc)])
         return morpho_doc
-
-    def pipe(self, texts, batch_size=1000):
-        """Tokenize a stream of texts.
-
-        texts: A sequence of unicode texts.
-        batch_size (int): Number of texts to accumulate in an internal buffer.
-        Defaults to 1000.
-        YIELDS (Doc): A sequence of Doc objects, in order.
-
-        DOCS: https://spacy.io/api/tokenizer#pipe
-        """
-        for text in texts:
-            yield self(text)
 
     def score(self, examples, **kwargs):
         validate_examples(examples, "Tokenizer.score")
@@ -169,22 +143,6 @@ cdef class MsaTokenizer:
         path = util.ensure_path(path)
         with path.open("wb") as file_:
             file_.write(self.to_bytes(**kwargs))
-
-    def from_disk(self, path, *, exclude=tuple()):
-        """Loads state from a directory. Modifies the object in place and
-        returns it.
-
-        path (str / Path): A path to a directory.
-        exclude (list): String names of serialization fields to exclude.
-        RETURNS (Tokenizer): The modified `Tokenizer` object.
-
-        DOCS: https://spacy.io/api/tokenizer#from_disk
-        """
-        path = util.ensure_path(path)
-        with path.open("rb") as file_:
-            bytes_data = file_.read()
-        self.from_bytes(bytes_data, exclude=exclude)
-        return self
 
     def to_bytes(self, *, exclude=tuple()):
         """Serialize the current state to a binary string.
@@ -211,66 +169,12 @@ cdef class MsaTokenizer:
         }
         return util.to_bytes(serializers, exclude)
 
-    def from_bytes(self, bytes_data, *, exclude=tuple()):
-        """Load state from a binary string.
-
-        bytes_data (bytes): The data to load from.
-        exclude (list): String names of serialization fields to exclude.
-        RETURNS (Tokenizer): The `Tokenizer` object.
-
-        DOCS: https://spacy.io/api/tokenizer#from_bytes
-        """
-        data = {}
-        """
-        deserializers = {
-            "vocab": lambda b: self.vocab.from_bytes(b, exclude=exclude),
-            "prefix_search": lambda b: data.setdefault("prefix_search", b),
-            "suffix_search": lambda b: data.setdefault("suffix_search", b),
-            "infix_finditer": lambda b: data.setdefault("infix_finditer", b),
-            "token_match": lambda b: data.setdefault("token_match", b),
-            "url_match": lambda b: data.setdefault("url_match", b),
-            "exceptions": lambda b: data.setdefault("rules", b),
-            "faster_heuristics": lambda b: data.setdefault("faster_heuristics", b),
-        }
-        """
-        deserializers = {
-            "vocab": lambda b: self.vocab.from_bytes(b, exclude=exclude),
-        }
-        # reset all properties and flush all caches (through rules),
-        # reset rules first so that _reload_special_cases is trivial/fast as
-        # the other properties are reset
-        self.rules = {}
-        self.prefix_search = None
-        self.suffix_search = None
-        self.infix_finditer = None
-        self.token_match = None
-        self.url_match = None
-        util.from_bytes(bytes_data, deserializers, exclude)
-        """
-        if "prefix_search" in data and isinstance(data["prefix_search"], str):
-            self.prefix_search = re.compile(data["prefix_search"]).search
-        if "suffix_search" in data and isinstance(data["suffix_search"], str):
-            self.suffix_search = re.compile(data["suffix_search"]).search
-        if "infix_finditer" in data and isinstance(data["infix_finditer"], str):
-            self.infix_finditer = re.compile(data["infix_finditer"]).finditer
-        if "token_match" in data and isinstance(data["token_match"], str):
-            self.token_match = re.compile(data["token_match"]).match
-        if "url_match" in data and isinstance(data["url_match"], str):
-            self.url_match = re.compile(data["url_match"]).match
-        if "faster_heuristics" in data:
-            self.faster_heuristics = data["faster_heuristics"]
-        # always load rules last so that all other settings are set before the
-        # internal tokenization for the phrase matcher
-        if "rules" in data and isinstance(data["rules"], dict):
-            self.rules = data["rules"]
-        """
-        return self
-
 @spacy.registry.tokenizers("msa_tokenizer")
 def make_msa_tokenizer():
 
     def create_msa_tokenizer(nlp):
-        return MsaTokenizer(nlp.vocab)
+        # return MsaTokenizer(nlp.vocab)
+        return MsaTokenizer(nlp)
 
     return create_msa_tokenizer
 
