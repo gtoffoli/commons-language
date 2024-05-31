@@ -120,12 +120,26 @@ cdef class MsaTokenizer:
         doc_text = doc.text
         morpho_doc_text = morpho_doc.text
         # print('---', self.count, len(text), len(doc_text), len(morpho_doc_text))
+        # print self.count ,
         if morpho_doc_text != text:
             print(text)
             print(doc_text)
             print(morpho_doc_text)
         # print([[i+1, t.text, len(t.whitespace_)] for i, t in enumerate(morpho_doc)])
         return morpho_doc
+
+    def pipe(self, texts, batch_size=1000):
+        """Tokenize a stream of texts.
+
+        texts: A sequence of unicode texts.
+        batch_size (int): Number of texts to accumulate in an internal buffer.
+        Defaults to 1000.
+        YIELDS (Doc): A sequence of Doc objects, in order.
+
+        DOCS: https://spacy.io/api/tokenizer#pipe
+        """
+        for text in texts:
+            yield self(text)
 
     def score(self, examples, **kwargs):
         validate_examples(examples, "Tokenizer.score")
@@ -152,18 +166,6 @@ cdef class MsaTokenizer:
 
         DOCS: https://spacy.io/api/tokenizer#to_bytes
         """
-        """
-        serializers = {
-            "vocab": lambda: self.vocab.to_bytes(exclude=exclude),
-            "prefix_search": lambda: _get_regex_pattern(self.prefix_search),
-            "suffix_search": lambda: _get_regex_pattern(self.suffix_search),
-            "infix_finditer": lambda: _get_regex_pattern(self.infix_finditer),
-            "token_match": lambda: _get_regex_pattern(self.token_match),
-            "url_match": lambda: _get_regex_pattern(self.url_match),
-            "exceptions": lambda: dict(sorted(self._rules.items())),
-            "faster_heuristics": lambda: self.faster_heuristics,
-        }
-        """
         serializers = {
             "vocab": lambda: self.vocab.to_bytes(exclude=exclude),
         }
@@ -173,7 +175,6 @@ cdef class MsaTokenizer:
 def make_msa_tokenizer():
 
     def create_msa_tokenizer(nlp):
-        # return MsaTokenizer(nlp.vocab)
         return MsaTokenizer(nlp)
 
     return create_msa_tokenizer

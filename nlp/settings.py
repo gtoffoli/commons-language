@@ -13,6 +13,7 @@ TEMP_ROOT = os.path.join(BASE_DIR, 'temp')
 """
 
 import spacy
+from spacy.language import Language
 
 # this is used to display the language name
 LANGUAGE_MAPPING = {
@@ -35,9 +36,10 @@ LANGUAGE_MAPPING = {
 # this takes some time to load so doing it here and hopefully this improves performance
 
 # SUPPORTED_LANGUAGES = ['da', 'de', 'el', 'en', 'es', 'fr', 'hr', 'it', 'lt', 'nl', 'pl', 'pt',]
-SUPPORTED_LANGUAGES = ['da', 'el', 'en', 'es', 'hr', 'it', 'lt',]
+SUPPORTED_LANGUAGES = ['ar', 'da', 'el', 'en', 'es', 'hr', 'it', 'lt',]
 
 AVAILABLE_LANGUAGE_MODELS = {}
+AVAILABLE_LANGUAGE_MODELS['ar'] = ('ar_core_news_md',)
 AVAILABLE_LANGUAGE_MODELS['da'] = ('da_core_news_md','da_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['de'] = ('de_core_news_sm',)
 AVAILABLE_LANGUAGE_MODELS['el'] = ('el_core_news_md', 'el_core_news_sm',)
@@ -70,6 +72,17 @@ for language in SUPPORTED_LANGUAGES:
             except OSError:
                 print('Warning: model {} not found.'.format(model))
                 continue
+
+ar = LANGUAGE_MODELS.get('ar', None)
+if ar:
+    from cameltokenizer import tokenizer
+    cameltokenizer = tokenizer.CamelTokenizer(ar.vocab)
+
+    @Language.component("cameltokenizer")
+    def tokenizer_extra_step(doc):
+        return cameltokenizer(doc)
+
+    ar.add_pipe("cameltokenizer", name="cameltokenizer", first=True)
 
 # this is used for language identification. Loading here to avoid importing many times
 import langid as LANG_ID
