@@ -37,6 +37,8 @@ fasttext_path = '/opt/demo-app/fastText/fasttext'
 def text_to_language(text):
     identifier = LanguageIdentifier.from_modelstring(model, norm_probs=True)
     language, confidence = identifier.classify(text)
+    if language == 'ur' and not settings.LANGUAGE_MODELS.get('ur', None) and settings.LANGUAGE_MODELS.get('ar', None):
+        language = 'ar'
     print('language_detection: ', language, confidence)
     return language, confidence
 
