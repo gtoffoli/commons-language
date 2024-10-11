@@ -124,6 +124,9 @@ def doc_to_json(doc, language):
     # augment each token in json with additional attributes
     for token in doc:
         token_data = start_dict[token.idx]
+        sentence = token.sent
+        token_data['sent_start'] = sentence.start
+        token_data['sent_end'] = sentence.end
         token_data['stop'] = token.is_stop
         token_data['lemma'] = token.lemma_
         token_data['oov'] = token.is_oov
