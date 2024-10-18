@@ -8,26 +8,36 @@ from spacy.tokens import Span
 from nlp.babelnet import *
 
 def extended_noun_chuncks(doc):
-    """ try to extend noun chunks, mostly by including prepositional clauses """
+    """ try to extend noun chunks, mostly by including prepositional clauses;
+        for each original noun chunk, return at most itself or one of its possible extensions """
     noun_chunks = []
     for nc in doc.noun_chunks:
-        start_token = doc[nc.start]
-        if start_token.pos_ == 'PRON' and (start_token.tag_ in ['PR'] or start_token.tag_.startswith('W')):
+        start = nc.start
+        start_token = doc[start]
+        # Wh-type or personal or possessive pronoun?
+        if start_token.pos_ == 'PRON' and (start_token.tag_ in ['PRP', 'PRP$',] or start_token.tag_.startswith('W')):
             continue
         end = nc.end
         extended = nc
-        subtree = nc.subtree
-        if subtree:
+        subtree = list(nc.subtree)
+        if len(subtree) > (end - start):
             subtree = sorted(subtree, key=lambda token: token.i)
+            n_adps = 0
             for token in subtree:
-                if token.i >= end:
+                if token.i >= end: # consider only tokens following the root
+                    if token.pos_ == 'ADP':
+                        if n_adps == 2: # limit the number of nested prepositional phrases
+                            break
+                        n_adps += 1
                     if token.pos_ not in ['ADJ', 'ADP', 'ADV', 'DET', 'NOUN', 'NUM', 'PRON', 'PROPN',]:
                         break
-                    if token.pos_ in ['ADV', 'PRON',] and (token.tag_ in ['PR'] or token.tag_.startswith('W')):
+                    # Wh-type adverb, determiner or pronouns? personal or possessive pronoun?
+                    if (token.pos_ in ['ADV', 'DET', 'PRON',] and token.tag_.startswith('W')) \
+                    or (token.pos_ == 'PRON' and token.tag_ in  ['PRP', 'PRP$',]):
                         break
                     end = token.i + 1
             if end > nc.end:
-                extended = Span(doc, nc.start, end)
+                extended = Span(doc, start, end)
             if  settings.DEBUG:
                 print('extended', nc.text, extended.text )
         noun_chunks.append(extended)
@@ -60,14 +70,6 @@ class BabelnetAnnotator():
 
         # process single-token nounchunks
         for token in doc:
-            """
-            if not token.pos_ in ['VERB', 'NOUN', 'PROPN', 'ADJ',]:
-                continue
-            if token.pos_ == 'PRON' and (token.tag_ in ['PR'] or token.tag_.startswith('W')):
-                continue
-            if token.pos_ == 'AUX' or token.lemma_ in ['essere', 'avere',]:
-                continue
-            """
             if not token.pos_ in ['NOUN', 'PROPN',]:
                 continue
             if len(token.text) <= 3:
@@ -103,6 +105,9 @@ class BabelnetAnnotator():
             if noun_lemma and noun_lemma in self.common_nouns:
                 return [] # to minimize the number of api calls
         while start < end:
+            if self.doc[start].pos_ in ['ADP']: # filters cannot start with a preposition
+                start += 1
+                continue
             key = '_'.join(['{}_{}'.format(self.doc[i].lemma_, self.doc[i].pos_) for i in range(start, end)])
             if key in self.cached_synsets:
                 synsets = self.cached_synsets[key]
@@ -184,7 +189,7 @@ class BabelnetAnnotator():
             self.cached_synsets[key] = synsets
         return synsets
 
-from nlp.babelnet import tourism_domains, economy_domains
+from nlp.babelnet import tourism_domains, economy_domains, argumentation_domains
 
 def test1(text='', domains=tourism_domains):
     from nlp.utils import text_to_language, make_docbin, addto_docbin
@@ -212,3 +217,6 @@ def test2(text='', domains=economy_domains):
 
 def test3():
     return test2(text="Il progresso tecnologico e la moderazione salariale avevano consentito una riduzione dei costi di produzione che, senza l’aumento dei margini di profitto, avrebbero molto probabilmente condotto a un’inflazione ancora più bassa, se non negativa.", domains=economy_domains)
+
+def test4():
+    return test2(text="La retórica es un arte muy olvidado e incomprensiblemente poco utilizado, mientras que la argumentación se ha puesto de moda como señal de legitimación del estado de derecho.", domains=argumentation_domains)

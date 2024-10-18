@@ -68,6 +68,12 @@ economy_domains = [
     "POSSESSION",
 ]
 
+argumentation_domains = [
+    "LANGUAGE_AND_LINGUISTICS",
+    "LAW_AND_CRIME",
+    "PHILOSOPHY_PSYCHOLOGY_AND_BEHAVIOR",
+]
+
 def isTerm(synset):
     """ return the term-like meta-concept of which a synset is an instance, if any, or None """
     relations = synset.outgoing_edges(ANY_HYPERNYM)
