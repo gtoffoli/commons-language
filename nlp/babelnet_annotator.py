@@ -15,7 +15,7 @@ def extended_noun_chuncks(doc):
         start = nc.start
         start_token = doc[start]
         # Wh-type or personal or possessive pronoun?
-        if start_token.pos_ == 'PRON' and (start_token.tag_ in ['PRP', 'PRP$',] or start_token.tag_.startswith('W')):
+        if start_token.pos_ in ['ADV', 'DET', 'PRON',] and (start_token.tag_ in ['PRP', 'PRP$', 'REL', 'INT',] or start_token.tag_.startswith('W')):
             continue
         end = nc.end
         extended = nc
@@ -33,7 +33,7 @@ def extended_noun_chuncks(doc):
                         break
                     # Wh-type adverb, determiner or pronouns? personal or possessive pronoun?
                     if (token.pos_ in ['ADV', 'DET', 'PRON',] and token.tag_.startswith('W')) \
-                    or (token.pos_ == 'PRON' and token.tag_ in  ['PRP', 'PRP$',]):
+                    or (token.pos_ in ['ADV', 'DET', 'PRON',] and token.tag_ in  ['PRP', 'PRP$', 'REL', 'INT',]):
                         break
                     end = token.i + 1
             if end > nc.end:
@@ -45,10 +45,12 @@ def extended_noun_chuncks(doc):
 
 class BabelnetAnnotator():
 
-    def __init__(self, model, domains=[], common_nouns=[]):
+    # def __init__(self, model, domains=[], common_nouns=[]):
+    def __init__(self, model, domains=[], common_nouns=[], max_vector_norm=30.0):
         self.bn_lang = bn.language.Language.from_iso(model.lang)
         self.bn_domains = set([BabelDomain[d] for d in domains])
         self.common_nouns = common_nouns
+        self.max_vector_norm = max_vector_norm
         self.cached_synsets = {}
         self.spans = []
         self.requests = 0
@@ -60,6 +62,8 @@ class BabelnetAnnotator():
 
         # process multi-token nounchunks
         for noun_chunk in extended_noun_chuncks(doc):
+            if len(noun_chunk) == 1 and doc[noun_chunk.start].vector_norm > self.max_vector_norm:
+                continue # to minimize the number of api calls
             spans = self.noun_chunk_annotated_spans(noun_chunk)
             if spans:
                 for span, synsets in spans:
@@ -70,12 +74,14 @@ class BabelnetAnnotator():
 
         # process single-token nounchunks
         for token in doc:
-            if not token.pos_ in ['NOUN', 'PROPN',]:
+            if not token.pos_ in ['VERB', 'NOUN', 'PROPN', 'ADJ', 'ADV',]:
+                continue
+            if token.pos_ in ['ADJ', 'ADV',] and token.tag_ in ['REL', 'INT',]:
                 continue
             if len(token.text) <= 3:
                 continue
-            if token.pos_ == 'NOUN' and token.lemma_ in self.common_nouns:
-                continue # to minimize the number of api calls
+            if token.vector_norm > self.max_vector_norm:
+               continue # to minimize the number of api calls
             synsets = self.token_synsets(token)
             annotation = synsets_to_annotation(synsets)
             if annotation:
@@ -178,7 +184,7 @@ class BabelnetAnnotator():
                 lemma_objects = s.lemmas(self.bn_lang)
                 for lo in lemma_objects:
                     if lo.lemma_type == BabelLemmaType.HIGH_QUALITY and \
-                       ((pos in ['VERB', 'NOUN', 'ADJ',] and s.type == SynsetType.CONCEPT) or \
+                       ((pos in ['VERB', 'NOUN', 'ADJ', 'ADV',] and s.type == SynsetType.CONCEPT) or \
                         (pos in ['PROPN'] and s.type == SynsetType.NAMED_ENTITY \
                         #                  and not s.main_sense().source.is_from_wikipedia)) \
                        )) and domains_ok(s):
