@@ -68,6 +68,7 @@ POS_MAPPING = {
 
 SEMANTIC_POS_LIST = ['VERB', 'ADJ', 'NOUN', 'ADV', 'PROPN']
 
+"""
 def load_greek_lexicon():
     indexes = {}
     df = pd.read_csv(
@@ -101,6 +102,7 @@ def load_greek_lexicon():
 
 
 df, subj_scores, emotion_scores, polarity_scores, indexes = load_greek_lexicon()
+"""
 
 def customize_model(model):
     def set_custom_boundaries(doc):
@@ -287,6 +289,7 @@ def analyze_doc(doc=None, text='', glossary=[], keys=[], return_text=True):
     
         ret['analyzed_text'] = analyzed_text
 
+    """
     # Text category. Only valid for Greek text for now
     if (not keys or 'sentiment' in keys) and language == 'el':
         ret.update(sentiment_analysis(doc))
@@ -294,6 +297,7 @@ def analyze_doc(doc=None, text='', glossary=[], keys=[], return_text=True):
             ret['category'] = predict_category(text, language)
         except Exception:
             pass
+    """
 
     if not keys or 'keywords' in keys:
         # top 10 most frequent keywords, based on tokens lemmatization
